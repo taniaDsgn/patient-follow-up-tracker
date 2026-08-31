@@ -1,0 +1,161 @@
+{
+  "_meta": {
+    "description": "Synthetic patient data for hackathon demo purposes only. No real patient information.",
+    "today_for_demo": "2026-08-30"
+  },
+  "patients": [
+    {
+      "id": "p001",
+      "name": "Maria Chen",
+      "treatment_plan": { "type": "PT", "frequency_per_week": 2, "duration_weeks": 6, "started_on": "2026-07-01" },
+      "last_scheduled_date": "2026-08-20",
+      "status": "not_scheduled",
+      "notes": [],
+      "vacation": { "on_vacation": false, "expected_return_date": null }
+    },
+    {
+      "id": "p002",
+      "name": "James Okafor",
+      "treatment_plan": { "type": "Acu", "frequency_per_week": 1, "duration_weeks": 8, "started_on": "2026-06-15" },
+      "last_scheduled_date": "2026-08-27",
+      "status": "not_scheduled",
+      "notes": [
+        { "date": "2026-08-27", "text": "Said he'll text once he checks his work schedule" }
+      ],
+      "vacation": { "on_vacation": false, "expected_return_date": null }
+    },
+    {
+      "id": "p003",
+      "name": "Priya Patel",
+      "treatment_plan": { "type": "Massage", "frequency_per_week": 1, "duration_weeks": 4, "started_on": "2026-08-01" },
+      "last_scheduled_date": "2026-08-29",
+      "status": "scheduled",
+      "notes": [],
+      "next_appointment": "2026-09-02",
+      "vacation": { "on_vacation": false, "expected_return_date": null }
+    },
+    {
+      "id": "p004",
+      "name": "Robert Kim",
+      "treatment_plan": { "type": "PT", "frequency_per_week": 2, "duration_weeks": 6, "started_on": "2026-07-10" },
+      "last_scheduled_date": "2026-08-18",
+      "status": "not_scheduled",
+      "notes": [
+        { "date": "2026-08-18", "text": "On vacation, back Sep 5" }
+      ],
+      "vacation": { "on_vacation": true, "expected_return_date": "2026-09-05" }
+    },
+    {
+      "id": "p005",
+      "name": "Diane Torres",
+      "treatment_plan": { "type": "Acu", "frequency_per_week": 1, "duration_weeks": 10, "started_on": "2026-05-20" },
+      "last_scheduled_date": "2026-08-11",
+      "status": "not_scheduled",
+      "notes": [
+        { "date": "2026-08-11", "text": "Traveling, expects to be back Aug 25" }
+      ],
+      "vacation": { "on_vacation": true, "expected_return_date": "2026-08-25" }
+    },
+    {
+      "id": "p006",
+      "name": "Samuel Green",
+      "treatment_plan": { "type": "PT", "frequency_per_week": 2, "duration_weeks": 6, "started_on": "2026-06-01" },
+      "last_scheduled_date": "2026-08-15",
+      "status": "not_scheduled",
+      "notes": [],
+      "vacation": { "on_vacation": false, "expected_return_date": null }
+    },
+    {
+      "id": "p007",
+      "name": "Angela Ruiz",
+      "treatment_plan": { "type": "Massage", "frequency_per_week": 1, "duration_weeks": 4, "started_on": "2026-08-07" },
+      "last_scheduled_date": "2026-08-28",
+      "status": "scheduled",
+      "notes": [],
+      "next_appointment": "2026-09-04",
+      "vacation": { "on_vacation": false, "expected_return_date": null }
+    },
+    {
+      "id": "p008",
+      "name": "Tom Bennett",
+      "treatment_plan": { "type": "Acu", "frequency_per_week": 2, "duration_weeks": 5, "started_on": "2026-07-20" },
+      "last_scheduled_date": "2026-08-21",
+      "status": "not_scheduled",
+      "notes": [
+        { "date": "2026-08-22", "text": "Recovering from a cold, will reschedule once better" }
+      ],
+      "vacation": { "on_vacation": false, "expected_return_date": null }
+    },
+    {
+      "id": "p009",
+      "name": "Linda Osei",
+      "treatment_plan": { "type": "PT", "frequency_per_week": 1, "duration_weeks": 6, "started_on": "2026-08-29" },
+      "last_scheduled_date": "2026-08-29",
+      "status": "scheduled",
+      "notes": [],
+      "next_appointment": "2026-09-05",
+      "vacation": { "on_vacation": false, "expected_return_date": null }
+    },
+    {
+      "id": "p010",
+      "name": "George Papadopoulos",
+      "treatment_plan": { "type": "Massage", "frequency_per_week": 1, "duration_weeks": 4, "started_on": "2026-07-15" },
+      "last_scheduled_date": "2026-08-10",
+      "status": "not_scheduled",
+      "notes": [],
+      "vacation": { "on_vacation": false, "expected_return_date": null }
+    },
+    {
+      "id": "p011",
+      "name": "Fatima Al-Sayed",
+      "treatment_plan": { "type": "Acu", "frequency_per_week": 1, "duration_weeks": 8, "started_on": "2026-06-01" },
+      "last_scheduled_date": "2026-08-16",
+      "status": "not_scheduled",
+      "notes": [
+        { "date": "2026-08-16", "text": "On vacation, said back around Aug 30" }
+      ],
+      "vacation": { "on_vacation": true, "expected_return_date": "2026-08-30" }
+    },
+    {
+      "id": "p012",
+      "name": "Kevin O'Brien",
+      "treatment_plan": { "type": "PT", "frequency_per_week": 2, "duration_weeks": 6, "started_on": "2026-07-25" },
+      "last_scheduled_date": "2026-08-26",
+      "status": "not_scheduled",
+      "notes": [],
+      "vacation": { "on_vacation": false, "expected_return_date": null }
+    },
+    {
+      "id": "p013",
+      "name": "Sophia Nakamura",
+      "treatment_plan": { "type": "Massage", "frequency_per_week": 1, "duration_weeks": 4, "started_on": "2026-07-30" },
+      "last_scheduled_date": "2026-08-23",
+      "status": "not_scheduled",
+      "notes": [
+        { "date": "2026-08-23", "text": "Traveling for work, will call back next week" }
+      ],
+      "vacation": { "on_vacation": false, "expected_return_date": null }
+    },
+    {
+      "id": "p014",
+      "name": "Marcus Webb",
+      "treatment_plan": { "type": "PT", "frequency_per_week": 2, "duration_weeks": 6, "started_on": "2026-07-05" },
+      "last_scheduled_date": "2026-08-27",
+      "status": "scheduled",
+      "notes": [],
+      "next_appointment": "2026-08-31",
+      "vacation": { "on_vacation": false, "expected_return_date": null }
+    },
+    {
+      "id": "p015",
+      "name": "Elena Vasquez",
+      "treatment_plan": { "type": "Acu", "frequency_per_week": 1, "duration_weeks": 10, "started_on": "2026-06-10" },
+      "last_scheduled_date": "2026-08-13",
+      "status": "not_scheduled",
+      "notes": [
+        { "date": "2026-08-13", "text": "On vacation, back Sep 10" }
+      ],
+      "vacation": { "on_vacation": true, "expected_return_date": "2026-09-10" }
+    }
+  ]
+}
