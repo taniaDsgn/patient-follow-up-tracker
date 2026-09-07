@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Patient Follow-up Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F3F2F0;
+    --surface: #FFFFFF;
+    --border: #EAE8E4;
+    --text: #101828;
+    --text-muted: #99A1AF;
+    --teal: #52525B;
+    --teal-bg: #F4F4F5;
+    --coral: #B91C1C;
+    --coral-bg: #FEE2E2;
+    --amber: #92400E;
+    --amber-bg: #FEF3C7;
+    --blue: #1E40AF;
+    --blue-bg: #DBEAFE;
+    --green-bg: #DCFCE7;
+    --green: #166534;
+    --gray: #52525B;
+    --gray-bg: #F4F4F5;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 32px 40px 80px;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; }
+
+  h1 { font-size: 26px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.02em; }
+  .subtitle { color: var(--text-muted); font-size: 14px; margin: 0 0 24px; }
+
+  .top-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 20px; }
+  .account-box { font-size: 14px; color: var(--text-muted); text-align: right; white-space: nowrap; }
+  .account-box .staff-name { color: var(--text); font-weight: 600; }
+  .account-box .logout-link { color: var(--text-muted); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; margin-left: 8px; }
+  .account-box .logout-link:hover { color: var(--text); }
+
+  .banner {
+    background: transparent; border: none; padding: 0;
+    margin-bottom: 20px; display: flex; align-items: center;
+    gap: 8px; flex-wrap: wrap;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: 999px; font-size: 14px; font-weight: 500;
+    cursor: pointer; border: 1px solid var(--border); font-family: inherit;
+    background: var(--surface); color: #4A5565;
+  }
+  .chip.all { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+  .chip.urgent { background: var(--surface); color: var(--coral); border-color: var(--border); }
+  .chip.note { background: var(--surface); color: var(--amber); border-color: var(--border); }
+  .chip.vacation { background: var(--surface); color: var(--blue); border-color: var(--border); }
+  .chip.paused { background: var(--surface); color: var(--gray); border-color: var(--border); }
+  .chip.waitlist { background: var(--surface); color: var(--teal); border-color: var(--border); }
+  .chip.selected { background: #101828; color: #fff !important; border-color: #101828; }
+  .patient-count { font-size: 14px; color: var(--text-muted); margin-left: auto; }
+  .chip-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; }
+.chip-count { font-size: 12px; font-weight: 600; border-radius: 999px; padding: 1px 8px; margin-left: 2px; }
+
+  .toolbar { display: flex; gap: 10px; margin-bottom: 16px; }
+  .search-input {
+    flex: 1; padding: 10px 14px; font-size: 14px; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--surface); color: var(--text); font-family: inherit;
+  }
+  .search-input:focus { outline: none; border-color: #101828; }
+  .add-patient-btn {
+    padding: 10px 16px; font-size: 14px; font-weight: 500; border-radius: 8px;
+    border: none; background: #101828; color: #fff;
+    cursor: pointer; font-family: inherit; white-space: nowrap;
+  }
+  .add-patient-btn:hover { background: #1E2939; }
+
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  th {
+    text-align: left; font-size: 12px; font-weight: 500; color: var(--text-muted);
+    padding: 13px 16px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none;
+  }
+  th:hover { color: var(--text); }
+  th .arrow { font-size: 10px; margin-left: 3px; opacity: 0.5; }
+  td { padding: 14px 16px; font-size: 14px; border-bottom: 1px solid #F9FAFB; vertical-align: top; }
+  tbody tr:last-of-type td { border-bottom: none; }
+  tbody tr:hover td { background: #FAFAF9; }
+  .patient-name { font-weight: 600; }
+  .days-overdue { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .days-overdue.high { color: var(--coral); font-weight: 600; }
+
+  .status-pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; margin-right: 4px; margin-bottom: 4px; }
+  .status-pill.urgent { background: var(--coral-bg); color: var(--coral); }
+  .status-pill.note { background: var(--amber-bg); color: var(--amber); }
+  .status-pill.vacation { background: var(--blue-bg); color: var(--blue); }
+  .status-pill.ok { background: var(--green-bg); color: var(--green); }
+  .status-pill.paused { background: var(--gray-bg); color: var(--gray); }
+
+  .attempts-flag { font-size: 11px; color: var(--coral); font-weight: 600; margin-top: 3px; }
+  .reminder-tag { font-size: 11px; color: #0F766E; margin-top: 3px; }
+  .waitlist-tag { font-size: 11px; color: #0F766E; font-weight: 500; }
+
+  .note-text { color: #6A7282; font-size: 13px; max-width: 230px; }
+  .note-clickable { cursor: pointer; }
+  .note-clickable:hover { color: var(--text); text-decoration: underline; text-decoration-style: dotted; }
+  .note-count { display: inline-block; font-size: 11px; color: var(--text-muted); cursor: pointer; margin-top: 4px; text-decoration: underline; text-underline-offset: 2px; }
+  .note-count:hover { color: var(--text); }
+
+  .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .action-btn {
+    font-size: 12px; padding: 5px 11px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--surface);
+    cursor: pointer; font-family: inherit; color: #4A5565; white-space: nowrap;
+  }
+  .action-btn:hover { border-color: #9CA3AF; color: var(--text); }
+
+  .expand-row td { background: #FAFAF9; padding: 14px 18px; }
+  .expand-content { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+  .expand-content textarea {
+    flex: 1; min-width: 240px; min-height: 44px;
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
+    font-family: inherit; font-size: 14px; resize: vertical;
+  }
+  .expand-content input[type="date"], .expand-content input[type="text"] {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
+    font-family: inherit; font-size: 14px;
+  }
+  .expand-field-label { font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 4px; }
+  .btn { padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 500; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-family: inherit; }
+  .btn:hover { background: #F9FAFB; }
+  .btn-primary { background: #101828; color: white; border-color: #101828; }
+  .btn-primary:hover { background: #1E2939; }
+  .waitlist-check-row { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-top: 8px; width: 100%; }
+
+  .history-panel { display: none; margin-top: 8px; padding: 8px 10px; background: #FAFAF9; border-radius: 8px; border: 1px solid var(--border); }
+  .history-panel.open { display: block; }
+  .history-item { font-size: 12px; color: var(--text-muted); padding: 3px 0; }
+  .history-item + .history-item { border-top: 1px solid var(--border); }
+  .history-date { font-weight: 600; color: var(--text); }
+  .row-links { display: flex; gap: 10px; margin-top: 3px; }
+  .link-btn { font-size: 11px; color: var(--text-muted); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+  .link-btn:hover { color: var(--text); }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: #101828; color: white; padding: 10px 18px; border-radius: 8px;
+    font-size: 13px; opacity: 0; transition: all 0.25s ease; pointer-events: none; z-index: 300;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(16,24,40,0.35); display: flex; align-items: center; justify-content: center; z-index: 100; }
+  .modal-overlay.hidden { display: none; }
+  .modal { background: var(--surface); border-radius: 12px; padding: 24px 28px; max-width: 380px; width: 90%; box-shadow: 0 12px 32px rgba(0,0,0,0.1); }
+  .modal h2 { margin: 0 0 10px; font-size: 17px; font-weight: 700; }
+  .modal-body { font-size: 14px; color: var(--text-muted); line-height: 1.6; margin: 0 0 18px; }
+  .modal-actions { display: flex; gap: 8px; }
+
+  .staff-select {
+    width: 100%; padding: 9px 10px; margin-top: 12px; border: 1px solid var(--border);
+    border-radius: 8px; font-family: inherit; font-size: 14px; background: var(--surface); color: var(--text);
+  }
+  .login-error { color: var(--coral); font-size: 12px; margin-top: 8px; min-height: 16px; }
+  .login-switch { margin-top: 14px; text-align: center; font-size: 12px; }
+  .login-card.hidden { display: none; }
+
+  .login-overlay { position: fixed; inset: 0; background: rgba(16,24,40,0.5); display: flex; align-items: center; justify-content: center; z-index: 200; }
+  .login-overlay.hidden { display: none; }
+  .login-card { background: var(--surface); border-radius: 12px; padding: 24px 28px; max-width: 340px; width: 90%; box-shadow: 0 12px 32px rgba(0,0,0,0.1); }
+  .login-card h2 { margin: 0 0 4px; font-size: 17px; font-weight: 700; }
+
+  .cal-month { display: inline-block; vertical-align: top; margin: 10px 16px 4px 0; }
+  .cal-month-label { font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 28px); gap: 3px; }
+  .cal-dow { font-size: 10px; color: var(--text-muted); text-align: center; padding-bottom: 2px; }
+  .cal-day { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+  .cal-day:hover { border-color: #101828; }
+  .cal-day.empty { cursor: default; }
+  .cal-day.empty:hover { border-color: transparent; }
+  .cal-day.selected { background: #101828; color: white; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2>Good morning</h2>
+    <p class="modal-body" id="modalBody">Loading today's patient list…</p>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="modalViewBtn">View list</button>
+      <button class="btn" id="modalDismissBtn">Dismiss</button>
+    </div>
+  </div>
+</div>
+
+<div class="login-overlay hidden" id="loginOverlay">
+  <div class="login-card" id="pinLoginView">
+    <h2>Riverside Wellness Clinic</h2>
+    <p class="modal-body">Enter your 4-digit PIN</p>
+    <input type="password" id="pinInput" class="staff-select" maxlength="4" inputmode="numeric"
+           placeholder="••••" style="text-align:center; letter-spacing:8px; font-size:20px;">
+    <div class="login-error" id="pinError"></div>
+    <button class="btn btn-primary" id="pinSubmitBtn" style="margin-top:12px; width:100%;">Continue</button>
+    <div class="login-switch"><span class="link-btn" id="showAddStaffBtn">+ New staff member? Register here</span></div>
+  </div>
+  <div class="login-card hidden" id="addStaffView">
+    <h2>Register new staff</h2>
+    <p class="modal-body">Riverside Wellness Clinic — demo access only</p>
+    <div class="expand-field-label" style="margin-top:8px;">Name</div>
+    <input type="text" id="newStaffName" class="staff-select" placeholder="Full name">
+    <div class="expand-field-label" style="margin-top:12px;">Choose a 4-digit PIN</div>
+    <input type="password" id="newStaffPin" class="staff-select" maxlength="4" inputmode="numeric" placeholder="••••">
+    <button class="btn btn-primary" id="registerStaffBtn" style="margin-top:14px; width:100%;">Register & continue</button>
+    <div class="login-switch"><span class="link-btn" id="showPinLoginBtn">Back to PIN entry</span></div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="noteDetailOverlay">
+  <div class="modal">
+    <h2 id="noteDetailPatientName">Note</h2>
+    <p class="modal-body" id="noteDetailText" style="color: var(--text); line-height:1.6;"></p>
+    <p class="note-meta" id="noteDetailMeta" style="margin-top:14px; font-size:12px; color:var(--text-muted);"></p>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn" id="closeNoteDetailBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="addPatientOverlay">
+  <div class="modal">
+    <h2>Add a new patient</h2>
+    <div class="expand-field-label" style="margin-top:12px;">Name</div>
+    <input type="text" id="newPatientName" class="staff-select" placeholder="Full name">
+    <div class="expand-field-label" style="margin-top:12px;">Treatment type</div>
+    <select id="newPatientType" class="staff-select">
+      <option value="PT">PT</option>
+      <option value="Acu">Acu</option>
+      <option value="Massage">Massage</option>
+    </select>
+    <div class="expand-field-label" style="margin-top:12px;">Frequency</div>
+    <select id="newPatientFreq" class="staff-select">
+      <option value="1">1×/week</option>
+      <option value="2">2×/week</option>
+    </select>
+    <div class="modal-actions" style="margin-top:18px;">
+      <button class="btn btn-primary" id="saveNewPatientBtn">Add patient</button>
+      <button class="btn" id="cancelNewPatientBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="wrap">
+  <div class="top-row">
+    <div>
+      <h1>Patient follow-up tracker</h1>
+      <p class="subtitle" id="todaySubtitle"></p>
+    </div>
+    <button class="btn" id="notifyBtn">Enable desktop notifications</button>
+    <div class="account-box" id="accountBox"></div>
+  </div>
+
+  <div class="banner">
+    <button class="chip all selected" data-filter="" id="chipAll">All patients</button>
+    <button class="chip urgent" data-filter="urgent" id="chipUrgent">— needs follow-up</button>
+    <button class="chip note" data-filter="note" id="chipNote">— follow-up logged</button>
+    <button class="chip vacation" data-filter="vacation" id="chipVacation">— on vacation</button>
+    <button class="chip paused" data-filter="paused" id="chipPaused">— paused</button>
+    <button class="chip waitlist" data-filter="waitlist" id="chipWaitlist">— waitlist</button>
+    <span class="patient-count" id="patientCount"></span>
+  </div>
+
+  <div class="toolbar">
+    <input class="search-input" id="searchInput" type="text" placeholder="Search patients…" autocomplete="off">
+    <button class="add-patient-btn" id="addPatientBtn">+ Add patient</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th data-sort="name">Patient <span class="arrow">↕</span></th>
+        <th data-sort="status">Status <span class="arrow">↕</span></th>
+        <th>Note</th>
+        <th data-sort="days">Last Appointment <span class="arrow">↕</span></th>
+        <th>Next Appointment</th>
+        <th data-sort="treatment">Treatment <span class="arrow">↕</span></th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="patientTableBody"></tbody>
+  </table>
+</div>
+
+<script>
+const API_BASE = 'http://127.0.0.1:5000';
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+const statusLabel = { urgent: 'Needs follow-up', note: 'Follow-up logged', ok: 'Scheduled' };
+const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+let patients = [];
+let activeFilter = null;
+let sortKey = 'name';
+let sortDir = 1;
+let openRowId = null;
+let openRowMode = null;
+let openRowNoteId = null;
+let openHistoryId = null;
+let calendarSelected = new Set();
+let waitlistChecked = false;
+
+function daysAgo(dateStr) {
+  const d = new Date(dateStr);
+  return Math.round((today - d) / (1000 * 60 * 60 * 24));
+}
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return `${monthNames[d.getMonth()]} ${d.getDate()}`;
+}
+function formatDateTime(isoStr) {
+  // Formats to MM/DD/YYYY at h:mmam/pm
+  if (!isoStr) return '';
+  const d = new Date(isoStr.includes('T') ? isoStr : isoStr + 'T00:00:00');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  let h = d.getHours();
+  const min = String(d.getMinutes()).padStart(2, '0');
+  const ampm = h >= 12 ? 'pm' : 'am';
+  h = h % 12; if (h === 0) h = 12;
+  return `${mm}/${dd}/${yyyy} at ${h}:${min}${ampm}`;
+}
+
+function mapApiPatient(p) {
+  const notes = (p.notes || []).map(n => ({
+    id: n.id, date: n.note_date, text: n.text, createdBy: n.created_by || null,
+  })).sort((a, b) => a.date.localeCompare(b.date));
+  const currentNoteId = notes.length ? notes[notes.length - 1].id : null;
+  const status = p.status === 'scheduled' ? 'ok' : (currentNoteId ? 'note' : 'urgent');
+
+  return {
+    id: p.id,
+    name: p.name,
+    treatment: `${p.treatment_type}, ${p.frequency_per_week}×/week`,
+    lastDate: p.last_scheduled_date,
+    status,
+    onVacation: !!p.on_vacation,
+    vacationStart: p.vacation_start ? formatDate(p.vacation_start) : null,
+    returnDate: p.on_vacation && p.expected_return_date ? formatDate(p.expected_return_date) : null,
+    isPaused: !!p.is_paused,
+    pauseReason: p.pause_reason || null,
+    resumeDate: p.resume_date || null,
+    waiting: !!p.waiting_for_opening,
+    preferredTime: p.preferred_time || null,
+    reminderDate: p.reminder_date || null,
+    reminderSource: p.reminder_source || null,
+    notes,
+    currentNoteId,
+    appointments: p.next_appointment ? [p.next_appointment] : [],
+  };
+}
+
+async function loadPatients() {
+  const res = await fetch(`${API_BASE}/api/patients`);
+  const data = await res.json();
+  patients = data.map(mapApiPatient);
+  renderTable();
+  const urgent = patients.filter(p => p.status === 'urgent' && !p.isPaused).length;
+  const note = patients.filter(p => p.status === 'note' && !p.isPaused).length;
+  const vac = patients.filter(p => p.onVacation).length;
+  const modalBody = document.getElementById('modalBody');
+  if (modalBody) {
+    modalBody.textContent = `You have ${urgent + note + vac} patients needing attention today — ${urgent} need follow-up, ${note} have a follow-up logged, and ${vac} returning from vacation.`;
+  }
+}
+
+function getVisiblePatients() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  let list = patients.filter(p => {
+    if (!activeFilter) return true;
+    if (activeFilter === 'vacation') return p.onVacation;
+    if (activeFilter === 'paused') return p.isPaused;
+    if (activeFilter === 'waitlist') return p.waiting;
+    return p.status === activeFilter && !p.isPaused;
+  });
+  if (q) list = list.filter(p => p.name.toLowerCase().includes(q));
+  list = [...list].sort((a, b) => {
+    let av, bv;
+    if (sortKey === 'days') { av = daysAgo(a.lastDate); bv = daysAgo(b.lastDate); }
+    else if (sortKey === 'name') { av = a.name.toLowerCase(); bv = b.name.toLowerCase(); }
+    else if (sortKey === 'treatment') { av = a.treatment; bv = b.treatment; }
+    else if (sortKey === 'status') { av = a.status; bv = b.status; }
+    if (av < bv) return -1 * sortDir;
+    if (av > bv) return 1 * sortDir;
+    return 0;
+  });
+  return list;
+}
+
+function renderTable() {
+  const tbody = document.getElementById('patientTableBody');
+  tbody.innerHTML = '';
+  const list = getVisiblePatients();
+
+  document.getElementById('patientCount').textContent = `${patients.length} patient${patients.length === 1 ? '' : 's'} total`;
+  document.getElementById('chipUrgent').innerHTML = `<span class="chip-dot" style="background:#B91C1C"></span>Needs follow-up<span class="chip-count" style="background:#FEE2E2;color:#B91C1C">${patients.filter(p => p.status === 'urgent' && !p.isPaused).length}</span>`;
+  document.getElementById('chipNote').innerHTML = `<span class="chip-dot" style="background:#92400E"></span>Follow-up logged<span class="chip-count" style="background:#FEF3C7;color:#92400E">${patients.filter(p => p.status === 'note' && !p.isPaused).length}</span>`;
+  document.getElementById('chipVacation').innerHTML = `<span class="chip-dot" style="background:#1E40AF"></span>On vacation<span class="chip-count" style="background:#DBEAFE;color:#1E40AF">${patients.filter(p => p.onVacation).length}</span>`;
+  document.getElementById('chipPaused').innerHTML = `<span class="chip-dot" style="background:#52525B"></span>Paused<span class="chip-count" style="background:#F4F4F5;color:#52525B">${patients.filter(p => p.isPaused).length}</span>`;
+  document.getElementById('chipWaitlist').innerHTML = `<span class="chip-dot" style="background:#0F766E"></span>Waitlist<span class="chip-count" style="background:#CCFBF1;color:#0F766E">${patients.filter(p => p.waiting).length}</span>`;
+
+  list.forEach(p => {
+    const days = daysAgo(p.lastDate);
+    const overdueClass = days >= 7 ? 'high' : '';
+    const currentNote = p.notes.find(n => n.id === p.currentNoteId) || null;
+    const previousNotes = p.notes.filter(n => n.id !== p.currentNoteId);
+    const shownPrevious = previousNotes.slice(-1); // show 1 previous by default
+    const olderNotes = previousNotes.slice(0, -1);
+    const sortedAppts = [...p.appointments].sort();
+    const nextAppt = sortedAppts.length ? formatDate(sortedAppts[0]) : null;
+    const showAttemptsFlag = previousNotes.length >= 2 && days >= 14 && !p.isPaused;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="patient-name">${p.name}</td>
+      <td>
+        ${p.isPaused
+          ? `<span class="status-pill paused">Paused</span>`
+          : `<span class="status-pill ${p.status}">${statusLabel[p.status]}</span>`}
+        ${p.onVacation ? `<span class="status-pill vacation">On vacation</span>` : ''}
+        ${p.isPaused ? `
+          <div class="days-overdue">${p.pauseReason || 'No reason logged'}</div>
+          ${p.resumeDate ? `<div class="days-overdue">Resume: ${formatDate(p.resumeDate)}</div>` : ''}
+          <div class="row-links"><span class="link-btn" data-resume="${p.id}">Resume now</span></div>
+        ` : ''}
+        ${p.onVacation ? `
+          <div class="days-overdue">${p.vacationStart ? p.vacationStart + ' – ' : ''}${p.returnDate || ''}</div>
+          <div class="row-links">
+            <span class="link-btn" data-edit-vacation="${p.id}">Edit</span>
+            <span class="link-btn" data-end-vacation="${p.id}">End</span>
+          </div>` : ''}
+        ${showAttemptsFlag ? `<div class="attempts-flag">⚠ ${previousNotes.length + 1} attempts, no response</div>` : ''}
+        ${p.reminderDate ? `<div class="reminder-tag">⏰ Reminder: ${formatDate(p.reminderDate)}</div>` : ''}
+      </td>
+      <td>
+        ${currentNote
+          ? `<div class="note-text note-clickable" data-view-note="${p.id}:${currentNote.id}">${currentNote.text}</div>
+             <div class="row-links">
+               <span class="link-btn" data-edit-note="${p.id}:${currentNote.id}">Edit</span>
+               <span class="link-btn" data-delete-note="${p.id}:${currentNote.id}">Delete</span>
+             </div>`
+          : `<div class="note-text">No current note</div>`}
+        ${shownPrevious.map(n => `
+          <div class="note-text note-clickable" data-view-note="${p.id}:${n.id}" style="margin-top:4px; opacity:0.75;">${n.text}</div>
+        `).join('')}
+        ${olderNotes.length > 0 ? `<span class="note-count" data-history="${p.id}">+${olderNotes.length} earlier — view all</span>` : ''}
+        <div class="history-panel ${openHistoryId === p.id ? 'open' : ''}" id="history-${p.id}">
+          ${olderNotes.slice().reverse().map(n => `
+            <div class="history-item">
+              <div class="note-clickable" data-view-note="${p.id}:${n.id}">${n.text}</div>
+              <div class="row-links">
+                <span class="link-btn" data-edit-note="${p.id}:${n.id}">Edit</span>
+                <span class="link-btn" data-delete-note="${p.id}:${n.id}">Delete</span>
+              </div>
+            </div>`).join('')}
+        </div>
+        ${p.waiting ? `<div class="waitlist-tag">🕐 Waiting: ${p.preferredTime || 'any opening'}</div>` : ''}
+      </td>
+      <td>
+        ${formatDate(p.lastDate)}
+        <div class="days-overdue ${(p.status === 'urgent' || p.status === 'note') && !p.onVacation && !p.isPaused ? overdueClass : ''}">
+          ${days === 0 ? 'Today' : days + ' day' + (days === 1 ? '' : 's') + ' ago'}
+        </div>
+      </td>
+      <td>
+        ${nextAppt ? nextAppt : '<span class="note-text">Not booked</span>'}
+        <div class="row-links"><span class="link-btn" data-schedule="${p.id}">${sortedAppts.length ? 'Edit' : 'Schedule'}</span></div>
+      </td>
+      <td>${p.treatment}</td>
+      <td>
+        <div class="actions">
+          <button class="action-btn note-btn" data-id="${p.id}">+ Note</button>
+          <button class="action-btn vacation-btn" data-id="${p.id}">Vacation</button>
+          ${!p.isPaused ? `<button class="action-btn pause-btn" data-id="${p.id}">Pause</button>` : ''}
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+
+    if (openRowId === p.id) {
+      const expandTr = document.createElement('tr');
+      expandTr.className = 'expand-row';
+      if (openRowMode === 'note' || openRowMode === 'edit-note') {
+        const existingText = openRowMode === 'edit-note' ? p.notes.find(n => n.id === openRowNoteId).text : '';
+        const label = openRowMode === 'edit-note' ? `Edit note for ${p.name}` : `New note for ${p.name}`;
+        const saveLabel = openRowMode === 'edit-note' ? 'Save changes' : 'Save note';
+        expandTr.innerHTML = `
+          <td colspan="7">
+            <div class="expand-content">
+              <div style="flex:1; min-width:240px;">
+                <span class="expand-field-label">${label}</span>
+                <textarea id="noteInput" placeholder="What did they say?">${existingText}</textarea>
+                ${openRowMode === 'note' ? `
+                  <div class="waitlist-check-row">
+                    <input type="checkbox" id="waitlistCheck" ${waitlistChecked ? 'checked' : ''}>
+                    <label for="waitlistCheck">No opening available — add to waitlist</label>
+                  </div>
+                  ${waitlistChecked ? `<input type="text" id="preferredTimeInput" placeholder="Preferred time, e.g. Tuesday afternoons" style="width:100%; margin-top:6px;">` : ''}
+                ` : ''}
+              </div>
+              <div style="display:flex; gap:8px; align-self:flex-end;">
+                <button class="btn btn-primary" id="saveNoteBtn">${saveLabel}</button>
+                <button class="btn" id="cancelBtn">Cancel</button>
+              </div>
+            </div>
+          </td>`;
+      } else if (openRowMode === 'vacation' || openRowMode === 'edit-vacation') {
+        const isEdit = openRowMode === 'edit-vacation';
+        expandTr.innerHTML = `
+          <td colspan="7">
+            <div class="expand-content">
+              <div>
+                <span class="expand-field-label">From</span>
+                <input type="date" id="vacationStart">
+              </div>
+              <div>
+                <span class="expand-field-label">To (expected return)</span>
+                <input type="date" id="vacationDate">
+              </div>
+              <div style="flex:1; min-width:200px;">
+                <span class="expand-field-label">Note (optional)</span>
+                <textarea id="vacationNote" placeholder="e.g. Traveling for work"></textarea>
+              </div>
+              <div style="display:flex; gap:8px; align-self:flex-end;">
+                <button class="btn btn-primary" id="saveVacationBtn">${isEdit ? 'Save changes' : 'Log vacation'}</button>
+                <button class="btn" id="cancelBtn">Cancel</button>
+              </div>
+            </div>
+          </td>`;
+      } else if (openRowMode === 'pause') {
+        expandTr.innerHTML = `
+          <td colspan="7">
+            <div class="expand-content">
+              <div style="flex:1; min-width:220px;">
+                <span class="expand-field-label">Why is treatment paused? (e.g. insurance visits exhausted)</span>
+                <textarea id="pauseReasonInput" placeholder="Reason"></textarea>
+              </div>
+              <div>
+                <span class="expand-field-label">Expected resume date</span>
+                <input type="date" id="resumeDateInput">
+              </div>
+              <div style="display:flex; gap:8px; align-self:flex-end;">
+                <button class="btn btn-primary" id="savePauseBtn">Mark as paused</button>
+                <button class="btn" id="cancelBtn">Cancel</button>
+              </div>
+            </div>
+          </td>`;
+      } else if (openRowMode === 'schedule') {
+        expandTr.innerHTML = `
+          <td colspan="7">
+            <div class="expand-field-label">Click a date to select — ${p.name}</div>
+            <div id="calendarWrap"></div>
+            <div style="display:flex; gap:8px; margin-top:10px;">
+              <button class="btn btn-primary" id="saveScheduleBtn">Save appointment</button>
+              <button class="btn" id="cancelBtn">Cancel</button>
+            </div>
+          </td>`;
+      }
+      tbody.appendChild(expandTr);
+      if (openRowMode === 'schedule') renderCalendar(p);
+    }
+  });
+
+  attachRowHandlers();
+}
+
+function renderCalendar(p) {
+  calendarSelected = new Set(p.appointments);
+  const wrap = document.getElementById('calendarWrap');
+  wrap.innerHTML = renderMonthGrid(2026, 8) + renderMonthGrid(2026, 9);
+  wrap.querySelectorAll('.cal-day').forEach(cell => {
+    cell.addEventListener('click', () => {
+      const dateStr = cell.dataset.date;
+      calendarSelected.clear();
+      calendarSelected.add(dateStr);
+      wrap.querySelectorAll('.cal-day').forEach(c => c.classList.remove('selected'));
+      cell.classList.add('selected');
+    });
+  });
+}
+
+function renderMonthGrid(year, month) {
+  const first = new Date(year, month - 1, 1);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const startWeekday = first.getDay();
+  let cells = '';
+  for (let i = 0; i < startWeekday; i++) cells += `<div class="cal-day empty"></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isSelected = calendarSelected.has(dateStr);
+    cells += `<div class="cal-day${isSelected ? ' selected' : ''}" data-date="${dateStr}">${d}</div>`;
+  }
+  return `<div class="cal-month"><div class="cal-month-label">${monthNames[month - 1]} ${year}</div>
+    <div class="cal-grid"><div class="cal-dow">S</div><div class="cal-dow">M</div><div class="cal-dow">T</div>
+    <div class="cal-dow">W</div><div class="cal-dow">T</div><div class="cal-dow">F</div><div class="cal-dow">S</div>${cells}</div></div>`;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function attachRowHandlers() {
+  document.querySelectorAll('.note-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      openRowId = (openRowId === id && openRowMode === 'note') ? null : id;
+      openRowMode = 'note';
+      waitlistChecked = false;
+      renderTable();
+      const input = document.getElementById('noteInput');
+      if (input) input.focus();
+    });
+  });
+  document.querySelectorAll('.vacation-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      openRowId = (openRowId === id && openRowMode === 'vacation') ? null : id;
+      openRowMode = 'vacation';
+      renderTable();
+    });
+  });
+  document.querySelectorAll('.pause-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      openRowId = (openRowId === id && openRowMode === 'pause') ? null : id;
+      openRowMode = 'pause';
+      renderTable();
+    });
+  });
+  document.querySelectorAll('[data-resume]').forEach(el => {
+    el.addEventListener('click', async () => {
+      const p = patients.find(x => x.id === el.dataset.resume);
+      try {
+        const res = await fetch(`${API_BASE}/api/paused`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patient_id: p.id, is_paused: false }),
+        });
+        if (!res.ok) throw new Error();
+        showToast(`${p.name} resumed`);
+        await loadPatients();
+      } catch (err) { showToast('Could not resume — is the server running?'); }
+    });
+  });
+  document.querySelectorAll('[data-schedule]').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = el.dataset.schedule;
+      openRowId = (openRowId === id && openRowMode === 'schedule') ? null : id;
+      openRowMode = 'schedule';
+      renderTable();
+    });
+  });
+  document.querySelectorAll('.note-count').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = el.dataset.history;
+      openHistoryId = openHistoryId === id ? null : id;
+      renderTable();
+    });
+  });
+  document.querySelectorAll('[data-view-note]').forEach(el => {
+    el.addEventListener('click', () => {
+      const [id, noteId] = el.dataset.viewNote.split(':');
+      const p = patients.find(x => x.id === id);
+      const n = p.notes.find(x => x.id === parseInt(noteId, 10));
+      if (!n) return;
+      document.getElementById('noteDetailPatientName').textContent = p.name;
+      document.getElementById('noteDetailText').textContent = n.text;
+      document.getElementById('noteDetailMeta').textContent =
+        `Logged by ${n.createdBy ? n.createdBy : 'unknown staff'} · ${formatDateTime(n.date)}`;
+      document.getElementById('noteDetailOverlay').classList.remove('hidden');
+    });
+  });
+  document.querySelectorAll('[data-edit-note]').forEach(el => {
+    el.addEventListener('click', () => {
+      const [id, noteId] = el.dataset.editNote.split(':');
+      openRowId = id;
+      openRowMode = 'edit-note';
+      openRowNoteId = parseInt(noteId, 10);
+      renderTable();
+      const input = document.getElementById('noteInput');
+      if (input) input.focus();
+    });
+  });
+  document.querySelectorAll('[data-delete-note]').forEach(el => {
+    el.addEventListener('click', async () => {
+      const [id, noteId] = el.dataset.deleteNote.split(':');
+      const p = patients.find(x => x.id === id);
+      try {
+        const res = await fetch(`${API_BASE}/api/notes/${noteId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        showToast(`Note deleted for ${p.name}`);
+        await loadPatients();
+      } catch (err) { showToast('Could not delete note — is the server running?'); }
+    });
+  });
+  document.querySelectorAll('[data-edit-vacation]').forEach(el => {
+    el.addEventListener('click', () => {
+      openRowId = el.dataset.editVacation;
+      openRowMode = 'edit-vacation';
+      renderTable();
+    });
+  });
+  document.querySelectorAll('[data-end-vacation]').forEach(el => {
+    el.addEventListener('click', async () => {
+      const p = patients.find(x => x.id === el.dataset.endVacation);
+      try {
+        const res = await fetch(`${API_BASE}/api/vacation`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patient_id: p.id, on_vacation: false }),
+        });
+        if (!res.ok) throw new Error();
+        showToast(`Ended vacation status for ${p.name}`);
+        await loadPatients();
+      } catch (err) { showToast('Could not update vacation — is the server running?'); }
+    });
+  });
+
+  const waitlistCheckEl = document.getElementById('waitlistCheck');
+  if (waitlistCheckEl) waitlistCheckEl.addEventListener('change', (e) => {
+    waitlistChecked = e.target.checked;
+    renderTable();
+  });
+
+  const cancelBtn = document.getElementById('cancelBtn');
+  if (cancelBtn) cancelBtn.addEventListener('click', () => {
+    openRowId = null; openRowNoteId = null; waitlistChecked = false; renderTable();
+  });
+
+  const saveNoteBtn = document.getElementById('saveNoteBtn');
+  if (saveNoteBtn) saveNoteBtn.addEventListener('click', async () => {
+    const text = document.getElementById('noteInput').value.trim();
+    if (!text) return;
+    const p = patients.find(x => x.id === openRowId);
+    saveNoteBtn.disabled = true;
+    if (openRowMode === 'edit-note') {
+      try {
+        const res = await fetch(`${API_BASE}/api/notes/${openRowNoteId}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ new_text: text }),
+        });
+        if (!res.ok) throw new Error();
+        showToast(`Note updated for ${p.name}`);
+        openRowId = null; openRowNoteId = null;
+        await loadPatients();
+      } catch (err) { showToast('Could not update note — is the server running?'); }
+      finally { saveNoteBtn.disabled = false; }
+    } else {
+      try {
+        const nowIso = new Date().toISOString().slice(0, 19);
+        const res = await fetch(`${API_BASE}/api/notes`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patient_id: p.id, note_text: text, note_date: nowIso, created_by: currentStaff }),
+        });
+        if (!res.ok) throw new Error();
+        const preferredTimeInput = document.getElementById('preferredTimeInput');
+        if (waitlistChecked) {
+          await fetch(`${API_BASE}/api/waitlist`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ patient_id: p.id, waiting_for_opening: true, preferred_time: preferredTimeInput ? preferredTimeInput.value.trim() : null }),
+          });
+        }
+        showToast(`Note saved for ${p.name}`);
+        openRowId = null; waitlistChecked = false;
+        await loadPatients();
+      } catch (err) { showToast('Could not save note — is the server running?'); }
+      finally { saveNoteBtn.disabled = false; }
+    }
+  });
+
+  const saveVacationBtn = document.getElementById('saveVacationBtn');
+  if (saveVacationBtn) saveVacationBtn.addEventListener('click', async () => {
+    const startVal = document.getElementById('vacationStart').value;
+    const dateVal = document.getElementById('vacationDate').value;
+    const noteVal = document.getElementById('vacationNote').value.trim();
+    if (!dateVal) return;
+    const p = patients.find(x => x.id === openRowId);
+    const wasEdit = openRowMode === 'edit-vacation';
+    saveVacationBtn.disabled = true;
+    try {
+      const res = await fetch(`${API_BASE}/api/vacation`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patient_id: p.id, on_vacation: true, vacation_start: startVal || null, expected_return_date: dateVal }),
+      });
+      if (!res.ok) throw new Error();
+      if (noteVal) {
+        await fetch(`${API_BASE}/api/notes`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patient_id: p.id, note_text: noteVal, note_date: new Date().toISOString().slice(0,19), created_by: currentStaff }),
+        });
+      }
+      showToast(wasEdit ? `Vacation updated for ${p.name}` : `Vacation logged for ${p.name}`);
+      openRowId = null;
+      await loadPatients();
+    } catch (err) { showToast('Could not update vacation — is the server running?'); }
+    finally { saveVacationBtn.disabled = false; }
+  });
+
+  const savePauseBtn = document.getElementById('savePauseBtn');
+  if (savePauseBtn) savePauseBtn.addEventListener('click', async () => {
+    const reason = document.getElementById('pauseReasonInput').value.trim();
+    const resumeDate = document.getElementById('resumeDateInput').value;
+    const p = patients.find(x => x.id === openRowId);
+    savePauseBtn.disabled = true;
+    try {
+      const res = await fetch(`${API_BASE}/api/paused`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patient_id: p.id, is_paused: true, pause_reason: reason || null, resume_date: resumeDate || null }),
+      });
+      if (!res.ok) throw new Error();
+      showToast(`${p.name} marked as paused`);
+      openRowId = null;
+      await loadPatients();
+    } catch (err) { showToast('Could not update paused status — is the server running?'); }
+    finally { savePauseBtn.disabled = false; }
+  });
+
+  const saveScheduleBtn = document.getElementById('saveScheduleBtn');
+  if (saveScheduleBtn) saveScheduleBtn.addEventListener('click', async () => {
+    const p = patients.find(x => x.id === openRowId);
+    const dates = Array.from(calendarSelected).sort();
+    if (dates.length === 0) { openRowId = null; renderTable(); return; }
+    saveScheduleBtn.disabled = true;
+    try {
+      const res = await fetch(`${API_BASE}/api/appointments`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patient_id: p.id, appointment_date: dates[0] }),
+      });
+      if (!res.ok) throw new Error();
+      showToast(`Appointment set for ${p.name}`);
+      openRowId = null;
+      await loadPatients();
+    } catch (err) { showToast('Could not schedule appointment — is the server running?'); }
+    finally { saveScheduleBtn.disabled = false; }
+  });
+}
+
+document.querySelectorAll('.chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const f = chip.dataset.filter;
+    activeFilter = f || null;
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+    chip.classList.add('selected');
+    renderTable();
+  });
+});
+
+document.querySelectorAll('th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.sort;
+    if (sortKey === key) sortDir *= -1; else { sortKey = key; sortDir = 1; }
+    renderTable();
+  });
+});
+
+document.getElementById('searchInput').addEventListener('input', renderTable);
+
+// --- Summary modal ---
+document.getElementById('modalDismissBtn').addEventListener('click', () => {
+  document.getElementById('modalOverlay').classList.add('hidden');
+});
+document.getElementById('modalViewBtn').addEventListener('click', () => {
+  document.getElementById('modalOverlay').classList.add('hidden');
+  document.querySelector('.chip.urgent').click();
+});
+
+// --- Desktop notifications ---
+const notifyBtn = document.getElementById('notifyBtn');
+function updateNotifyBtnLabel() {
+  if (Notification.permission === 'granted') notifyBtn.textContent = 'Desktop notifications on';
+  else if (Notification.permission === 'denied') notifyBtn.textContent = 'Notifications blocked — check browser settings';
+  else notifyBtn.textContent = 'Enable desktop notifications';
+}
+if (typeof Notification !== 'undefined') {
+  updateNotifyBtnLabel();
+  notifyBtn.addEventListener('click', async () => {
+    if (Notification.permission === 'granted') {
+      const urgentCount = patients.filter(p => p.status === 'urgent' && !p.isPaused).length;
+      new Notification('Patient follow-up tracker', { body: `${urgentCount} patients still need a note today.` });
+      return;
+    }
+    const perm = await Notification.requestPermission();
+    updateNotifyBtnLabel();
+    if (perm === 'granted') new Notification('Notifications enabled', { body: "You'll get a desktop alert whenever a patient needs attention." });
+  });
+} else { notifyBtn.style.display = 'none'; }
+
+// --- PIN login ---
+let staffList = [
+  { name: 'Alex Rivera', pin: '1111' },
+  { name: 'Jordan Lee', pin: '2222' },
+  { name: 'Priya Shah', pin: '3333' },
+  { name: 'Nina Petrov', pin: '4444' },
+];
+let currentStaff = null;
+const loginOverlay = document.getElementById('loginOverlay');
+const accountBox = document.getElementById('accountBox');
+const pinLoginView = document.getElementById('pinLoginView');
+const addStaffView = document.getElementById('addStaffView');
+const pinInput = document.getElementById('pinInput');
+const pinError = document.getElementById('pinError');
+
+function renderAccountBox() {
+  accountBox.innerHTML = currentStaff
+    ? `Riverside Wellness Clinic — <span class="staff-name">${currentStaff}</span><span class="logout-link" id="logoutLink">Log out</span>`
+    : '';
+  const logoutLink = document.getElementById('logoutLink');
+  if (logoutLink) logoutLink.addEventListener('click', () => {
+    currentStaff = null;
+    renderAccountBox();
+    pinInput.value = ''; pinError.textContent = '';
+    pinLoginView.classList.remove('hidden');
+    addStaffView.classList.add('hidden');
+    loginOverlay.classList.remove('hidden');
+  });
+}
+
+function attemptLogin() {
+  const pin = pinInput.value.trim();
+  const match = staffList.find(s => s.pin === pin);
+  if (!match) { pinError.textContent = 'PIN not recognized — try again.'; return; }
+  currentStaff = match.name;
+  pinInput.value = ''; pinError.textContent = '';
+  loginOverlay.classList.add('hidden');
+  renderAccountBox();
+}
+document.getElementById('pinSubmitBtn').addEventListener('click', attemptLogin);
+pinInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptLogin(); });
+document.getElementById('showAddStaffBtn').addEventListener('click', () => {
+  pinLoginView.classList.add('hidden'); addStaffView.classList.remove('hidden');
+});
+document.getElementById('showPinLoginBtn').addEventListener('click', () => {
+  addStaffView.classList.add('hidden'); pinLoginView.classList.remove('hidden');
+});
+document.getElementById('registerStaffBtn').addEventListener('click', () => {
+  const name = document.getElementById('newStaffName').value.trim();
+  const pin = document.getElementById('newStaffPin').value.trim();
+  if (!name || !/^\d{4}$/.test(pin)) { showToast('Enter a name and a 4-digit PIN.'); return; }
+  if (staffList.some(s => s.pin === pin)) { showToast('That PIN is already in use — pick another.'); return; }
+  staffList.push({ name, pin });
+  currentStaff = name;
+  document.getElementById('newStaffName').value = '';
+  document.getElementById('newStaffPin').value = '';
+  addStaffView.classList.add('hidden'); pinLoginView.classList.remove('hidden');
+  loginOverlay.classList.add('hidden');
+  renderAccountBox();
+  showToast(`Welcome, ${name} — registered for this session (demo only, not saved permanently)`);
+});
+loginOverlay.classList.remove('hidden');
+renderAccountBox();
+
+document.getElementById('closeNoteDetailBtn').addEventListener('click', () => {
+  document.getElementById('noteDetailOverlay').classList.add('hidden');
+});
+
+// --- Add new patient ---
+const addPatientOverlay = document.getElementById('addPatientOverlay');
+document.getElementById('addPatientBtn').addEventListener('click', () => {
+  document.getElementById('newPatientName').value = '';
+  addPatientOverlay.classList.remove('hidden');
+});
+document.getElementById('cancelNewPatientBtn').addEventListener('click', () => {
+  addPatientOverlay.classList.add('hidden');
+});
+document.getElementById('saveNewPatientBtn').addEventListener('click', async () => {
+  const name = document.getElementById('newPatientName').value.trim();
+  if (!name) return;
+  const type = document.getElementById('newPatientType').value;
+  const freqNum = parseInt(document.getElementById('newPatientFreq').value, 10);
+  const saveBtn = document.getElementById('saveNewPatientBtn');
+  saveBtn.disabled = true;
+  try {
+    const res = await fetch(`${API_BASE}/api/patients`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, treatment_type: type, frequency_per_week: freqNum, duration_weeks: 6 }),
+    });
+    if (!res.ok) throw new Error();
+    addPatientOverlay.classList.add('hidden');
+    showToast(`${name} added — schedule their first appointment`);
+    await loadPatients();
+  } catch (err) { showToast('Could not add patient — is the server running?'); }
+  finally { saveBtn.disabled = false; }
+});
+
+document.getElementById('todaySubtitle').textContent = 'Today — ' + today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+loadPatients();
+</script>
+</body>
+</html>
