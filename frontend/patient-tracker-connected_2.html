@@ -51,17 +51,14 @@
   }
   .chip {
     display: inline-flex; align-items: center; gap: 6px;
-    padding: 7px 14px; border-radius: 999px; font-size: 14px; font-weight: 500;
+    padding: 7px 14px; border-radius: 999px; font-size: 14px; font-weight: 400;
     cursor: pointer; border: 1px solid var(--border); font-family: inherit;
     background: var(--surface); color: #4A5565;
   }
-  .chip.all { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
-  .chip.urgent { background: var(--surface); color: var(--coral); border-color: var(--border); }
-  .chip.note { background: var(--surface); color: var(--amber); border-color: var(--border); }
-  .chip.vacation { background: var(--surface); color: var(--blue); border-color: var(--border); }
-  .chip.paused { background: var(--surface); color: var(--gray); border-color: var(--border); }
-  .chip.waitlist { background: var(--surface); color: var(--teal); border-color: var(--border); }
-  .chip.selected { background: #101828; color: #fff !important; border-color: #101828; }
+  .chip.all, .chip.urgent, .chip.note, .chip.vacation, .chip.paused, .chip.waitlist {
+  background: var(--surface); color: #4A5565; border-color: var(--border);
+}
+.chip.selected { background: #101828; color: #fff !important; border-color: #101828; font-weight: 700; }
   .patient-count { font-size: 14px; color: var(--text-muted); margin-left: auto; }
   .chip-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; }
 .chip-count { font-size: 12px; font-weight: 600; border-radius: 999px; padding: 1px 8px; margin-left: 2px; }
@@ -79,7 +76,15 @@
   }
   .add-patient-btn:hover { background: #1E2939; }
 
-  table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  table { width: 100%; table-layout: fixed; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+th:nth-child(1), td:nth-child(1) { width: 13%; }
+th:nth-child(2), td:nth-child(2) { width: 15%; }
+th:nth-child(3), td:nth-child(3) { width: 23%; }
+th:nth-child(4), td:nth-child(4) { width: 12%; }
+th:nth-child(5), td:nth-child(5) { width: 12%; }
+th:nth-child(6), td:nth-child(6) { width: 11%; }
+th:nth-child(7), td:nth-child(7) { width: 14%; }
+td { word-wrap: break-word; }
   th {
     text-align: left; font-size: 12px; font-weight: 500; color: var(--text-muted);
     padding: 13px 16px; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none;
@@ -110,13 +115,26 @@
   .note-count { display: inline-block; font-size: 11px; color: var(--text-muted); cursor: pointer; margin-top: 4px; text-decoration: underline; text-underline-offset: 2px; }
   .note-count:hover { color: var(--text); }
 
-  .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .actions { display: flex; gap: 6px; flex-wrap: nowrap; align-items: center; }
   .action-btn {
     font-size: 12px; padding: 5px 11px; border-radius: 999px;
     border: 1px solid var(--border); background: var(--surface);
     cursor: pointer; font-family: inherit; color: #4A5565; white-space: nowrap;
   }
   .action-btn:hover { border-color: #9CA3AF; color: var(--text); }
+  .overflow-wrap { position: relative; display: inline-block; }
+.overflow-toggle { width: 30px; height: 30px; padding: 0; border-radius: 50%; }
+.overflow-menu-dropdown {
+  display: none; position: absolute; right: 0; top: calc(100% + 4px);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.1); z-index: 50; overflow: hidden; min-width: 110px;
+}
+.overflow-menu-dropdown.open { display: block; }
+.overflow-menu-dropdown button {
+  display: block; width: 100%; text-align: left; padding: 8px 14px; font-size: 13px;
+  border: none; background: none; cursor: pointer; font-family: inherit; color: var(--text);
+}
+.overflow-menu-dropdown button:hover { background: #F9FAFB; }
 
   .expand-row td { background: #FAFAF9; padding: 14px 18px; }
   .expand-content { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
@@ -341,7 +359,11 @@ function mapApiPatient(p) {
     id: n.id, date: n.note_date, text: n.text, createdBy: n.created_by || null,
   })).sort((a, b) => a.date.localeCompare(b.date));
   const currentNoteId = notes.length ? notes[notes.length - 1].id : null;
-  const status = p.status === 'scheduled' ? 'ok' : (currentNoteId ? 'note' : 'urgent');
+  const hasFutureAppointment = p.next_appointment && new Date(p.next_appointment + 'T00:00:00') >= today;
+let status;
+if (hasFutureAppointment) status = 'ok';
+else if (p.on_vacation) status = currentNoteId ? 'note' : 'none';
+else status = currentNoteId ? 'note' : 'urgent';
 
   return {
     id: p.id,
@@ -352,6 +374,7 @@ function mapApiPatient(p) {
     onVacation: !!p.on_vacation,
     vacationStart: p.vacation_start ? formatDate(p.vacation_start) : null,
     returnDate: p.on_vacation && p.expected_return_date ? formatDate(p.expected_return_date) : null,
+    returnDateRaw: p.on_vacation ? p.expected_return_date : null,
     isPaused: !!p.is_paused,
     pauseReason: p.pause_reason || null,
     resumeDate: p.resume_date || null,
@@ -382,7 +405,7 @@ async function loadPatients() {
 function getVisiblePatients() {
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
   let list = patients.filter(p => {
-    if (!activeFilter) return true;
+    if (!activeFilter) return !p.onVacation && !p.isPaused;
     if (activeFilter === 'vacation') return p.onVacation;
     if (activeFilter === 'paused') return p.isPaused;
     if (activeFilter === 'waitlist') return p.waiting;
@@ -415,14 +438,16 @@ function renderTable() {
   document.getElementById('chipWaitlist').innerHTML = `<span class="chip-dot" style="background:#0F766E"></span>Waitlist<span class="chip-count" style="background:#CCFBF1;color:#0F766E">${patients.filter(p => p.waiting).length}</span>`;
 
   list.forEach(p => {
-    const days = daysAgo(p.lastDate);
+    const sortedAppts = [...p.appointments].sort();
+    const apptIsPast = sortedAppts.length && new Date(sortedAppts[0] + 'T00:00:00') < today;
+    const nextAppt = sortedAppts.length && !apptIsPast ? formatDate(sortedAppts[0]) : null;
+    const effectiveLastDate = apptIsPast ? sortedAppts[0] : p.lastDate;
+    const days = daysAgo(effectiveLastDate);
     const overdueClass = days >= 7 ? 'high' : '';
     const currentNote = p.notes.find(n => n.id === p.currentNoteId) || null;
     const previousNotes = p.notes.filter(n => n.id !== p.currentNoteId);
     const shownPrevious = previousNotes.slice(-1); // show 1 previous by default
     const olderNotes = previousNotes.slice(0, -1);
-    const sortedAppts = [...p.appointments].sort();
-    const nextAppt = sortedAppts.length ? formatDate(sortedAppts[0]) : null;
     const showAttemptsFlag = previousNotes.length >= 2 && days >= 14 && !p.isPaused;
 
     const tr = document.createElement('tr');
@@ -430,8 +455,8 @@ function renderTable() {
       <td class="patient-name">${p.name}</td>
       <td>
         ${p.isPaused
-          ? `<span class="status-pill paused">Paused</span>`
-          : `<span class="status-pill ${p.status}">${statusLabel[p.status]}</span>`}
+  ? `<span class="status-pill paused">Paused</span>`
+  : (p.status !== 'none' ? `<span class="status-pill ${p.status}">${statusLabel[p.status]}</span>` : '')}
         ${p.onVacation ? `<span class="status-pill vacation">On vacation</span>` : ''}
         ${p.isPaused ? `
           <div class="days-overdue">${p.pauseReason || 'No reason logged'}</div>
@@ -485,8 +510,13 @@ function renderTable() {
       <td>
         <div class="actions">
           <button class="action-btn note-btn" data-id="${p.id}">+ Note</button>
-          <button class="action-btn vacation-btn" data-id="${p.id}">Vacation</button>
-          ${!p.isPaused ? `<button class="action-btn pause-btn" data-id="${p.id}">Pause</button>` : ''}
+          <div class="overflow-wrap">
+            <button class="action-btn overflow-toggle" data-toggle-overflow="${p.id}">⋯</button>
+            <div class="overflow-menu-dropdown" id="overflow-${p.id}">
+              <button class="vacation-btn" data-id="${p.id}">Vacation</button>
+              ${!p.isPaused ? `<button class="pause-btn" data-id="${p.id}">Pause</button>` : ''}
+            </div>
+          </div>
         </div>
       </td>
     `;
@@ -627,6 +657,16 @@ function attachRowHandlers() {
       renderTable();
       const input = document.getElementById('noteInput');
       if (input) input.focus();
+    });
+  });
+  document.querySelectorAll('.overflow-toggle').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.toggleOverflow;
+      document.querySelectorAll('.overflow-menu-dropdown').forEach(m => {
+        if (m.id !== `overflow-${id}`) m.classList.remove('open');
+      });
+      document.getElementById(`overflow-${id}`).classList.toggle('open');
     });
   });
   document.querySelectorAll('.vacation-btn').forEach(btn => {
@@ -861,6 +901,9 @@ document.querySelectorAll('.chip').forEach(chip => {
   });
 });
 
+document.addEventListener('click', () => {
+  document.querySelectorAll('.overflow-menu-dropdown').forEach(m => m.classList.remove('open'));
+});
 document.querySelectorAll('th[data-sort]').forEach(th => {
   th.addEventListener('click', () => {
     const key = th.dataset.sort;
