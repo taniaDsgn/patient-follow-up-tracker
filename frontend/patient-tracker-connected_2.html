@@ -191,7 +191,10 @@ td { word-wrap: break-word; }
   .login-card h2 { margin: 0 0 4px; font-size: 17px; font-weight: 700; }
 
   .cal-month { display: inline-block; vertical-align: top; margin: 10px 16px 4px 0; }
-  .cal-month-label { font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+  .cal-month-label { font-size: 13px; font-weight: 600; }
+.cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; max-width: 220px; }
+.cal-nav-btn { border: 1px solid var(--border); background: var(--surface); border-radius: 6px; width: 28px; height: 28px; cursor: pointer; font-size: 16px; color: var(--text); }
+.cal-nav-btn:hover { border-color: #101828; }
   .cal-grid { display: grid; grid-template-columns: repeat(7, 28px); gap: 3px; }
   .cal-dow { font-size: 10px; color: var(--text-muted); text-align: center; padding-bottom: 2px; }
   .cal-day { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
@@ -203,17 +206,6 @@ td { word-wrap: break-word; }
 </head>
 <body>
 
-<div class="modal-overlay" id="modalOverlay">
-  <div class="modal">
-    <h2>Good morning</h2>
-    <p class="modal-body" id="modalBody">Loading today's patient list…</p>
-    <div class="modal-actions">
-      <button class="btn btn-primary" id="modalViewBtn">View list</button>
-      <button class="btn" id="modalDismissBtn">Dismiss</button>
-    </div>
-  </div>
-</div>
-
 <div class="login-overlay hidden" id="loginOverlay">
   <div class="login-card" id="pinLoginView">
     <h2>Riverside Wellness Clinic</h2>
@@ -222,7 +214,7 @@ td { word-wrap: break-word; }
            placeholder="••••" style="text-align:center; letter-spacing:8px; font-size:20px;">
     <div class="login-error" id="pinError"></div>
     <button class="btn btn-primary" id="pinSubmitBtn" style="margin-top:12px; width:100%;">Continue</button>
-    <div class="login-switch"><span class="link-btn" id="showAddStaffBtn">+ New staff member? Register here</span></div>
+
   </div>
   <div class="login-card hidden" id="addStaffView">
     <h2>Register new staff</h2>
@@ -270,6 +262,21 @@ td { word-wrap: break-word; }
   </div>
 </div>
 
+<div class="modal-overlay hidden" id="scheduleModal">
+  <div class="modal">
+    <h2 id="scheduleModalName">Schedule appointment</h2>
+    <div class="cal-nav">
+      <button type="button" class="cal-nav-btn" id="calPrevBtn">‹</button>
+      <div class="cal-month-label" id="calMonthLabel"></div>
+      <button type="button" class="cal-nav-btn" id="calNextBtn">›</button>
+    </div>
+    <div id="calendarWrap"></div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn btn-primary" id="saveScheduleBtn">Save appointment</button>
+      <button class="btn" id="cancelScheduleBtn">Cancel</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <div class="wrap">
@@ -609,11 +616,33 @@ function renderTable() {
   attachRowHandlers();
 }
 
-function renderCalendar(p) {
+let calendarViewYear = today.getFullYear();
+let calendarViewMonth = today.getMonth() + 1;
+let scheduleModalPatientId = null;
+
+function openScheduleModal(patientId) {
+  scheduleModalPatientId = patientId;
+  const p = patients.find(x => x.id === patientId);
+  document.getElementById('scheduleModalName').textContent = `Schedule appointment — ${p.name}`;
   calendarSelected = new Set(p.appointments);
+  if (calendarSelected.size > 0) {
+    const firstDate = new Date(Array.from(calendarSelected)[0] + 'T00:00:00');
+    calendarViewYear = firstDate.getFullYear();
+    calendarViewMonth = firstDate.getMonth() + 1;
+  } else {
+    calendarViewYear = today.getFullYear();
+    calendarViewMonth = today.getMonth() + 1;
+  }
+  renderCalendarMonth();
+  document.getElementById('scheduleModal').classList.remove('hidden');
+}
+
+function renderCalendarMonth() {
+  document.getElementById('calMonthLabel').textContent = `${monthNames[calendarViewMonth - 1]} ${calendarViewYear}`;
   const wrap = document.getElementById('calendarWrap');
-  wrap.innerHTML = renderMonthGrid(2026, 8) + renderMonthGrid(2026, 9);
+  wrap.innerHTML = renderMonthGrid(calendarViewYear, calendarViewMonth);
   wrap.querySelectorAll('.cal-day').forEach(cell => {
+    if (cell.classList.contains('empty')) return;
     cell.addEventListener('click', () => {
       const dateStr = cell.dataset.date;
       calendarSelected.clear();
@@ -635,9 +664,8 @@ function renderMonthGrid(year, month) {
     const isSelected = calendarSelected.has(dateStr);
     cells += `<div class="cal-day${isSelected ? ' selected' : ''}" data-date="${dateStr}">${d}</div>`;
   }
-  return `<div class="cal-month"><div class="cal-month-label">${monthNames[month - 1]} ${year}</div>
-    <div class="cal-grid"><div class="cal-dow">S</div><div class="cal-dow">M</div><div class="cal-dow">T</div>
-    <div class="cal-dow">W</div><div class="cal-dow">T</div><div class="cal-dow">F</div><div class="cal-dow">S</div>${cells}</div></div>`;
+  return `<div class="cal-grid"><div class="cal-dow">S</div><div class="cal-dow">M</div><div class="cal-dow">T</div>
+    <div class="cal-dow">W</div><div class="cal-dow">T</div><div class="cal-dow">F</div><div class="cal-dow">S</div>${cells}</div>`;
 }
 
 function showToast(msg) {
@@ -701,10 +729,7 @@ function attachRowHandlers() {
   });
   document.querySelectorAll('[data-schedule]').forEach(el => {
     el.addEventListener('click', () => {
-      const id = el.dataset.schedule;
-      openRowId = (openRowId === id && openRowMode === 'schedule') ? null : id;
-      openRowMode = 'schedule';
-      renderTable();
+      openScheduleModal(el.dataset.schedule);
     });
   });
   document.querySelectorAll('.note-count').forEach(el => {
@@ -871,24 +896,6 @@ function attachRowHandlers() {
     finally { savePauseBtn.disabled = false; }
   });
 
-  const saveScheduleBtn = document.getElementById('saveScheduleBtn');
-  if (saveScheduleBtn) saveScheduleBtn.addEventListener('click', async () => {
-    const p = patients.find(x => x.id === openRowId);
-    const dates = Array.from(calendarSelected).sort();
-    if (dates.length === 0) { openRowId = null; renderTable(); return; }
-    saveScheduleBtn.disabled = true;
-    try {
-      const res = await fetch(`${API_BASE}/api/appointments`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ patient_id: p.id, appointment_date: dates[0] }),
-      });
-      if (!res.ok) throw new Error();
-      showToast(`Appointment set for ${p.name}`);
-      openRowId = null;
-      await loadPatients();
-    } catch (err) { showToast('Could not schedule appointment — is the server running?'); }
-    finally { saveScheduleBtn.disabled = false; }
-  });
 }
 
 document.querySelectorAll('.chip').forEach(chip => {
@@ -914,14 +921,6 @@ document.querySelectorAll('th[data-sort]').forEach(th => {
 
 document.getElementById('searchInput').addEventListener('input', renderTable);
 
-// --- Summary modal ---
-document.getElementById('modalDismissBtn').addEventListener('click', () => {
-  document.getElementById('modalOverlay').classList.add('hidden');
-});
-document.getElementById('modalViewBtn').addEventListener('click', () => {
-  document.getElementById('modalOverlay').classList.add('hidden');
-  document.querySelector('.chip.urgent').click();
-});
 
 // --- Desktop notifications ---
 const notifyBtn = document.getElementById('notifyBtn');
@@ -985,9 +984,6 @@ function attemptLogin() {
 }
 document.getElementById('pinSubmitBtn').addEventListener('click', attemptLogin);
 pinInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptLogin(); });
-document.getElementById('showAddStaffBtn').addEventListener('click', () => {
-  pinLoginView.classList.add('hidden'); addStaffView.classList.remove('hidden');
-});
 document.getElementById('showPinLoginBtn').addEventListener('click', () => {
   addStaffView.classList.add('hidden'); pinLoginView.classList.remove('hidden');
 });
@@ -1010,6 +1006,37 @@ renderAccountBox();
 
 document.getElementById('closeNoteDetailBtn').addEventListener('click', () => {
   document.getElementById('noteDetailOverlay').classList.add('hidden');
+});
+document.getElementById('calPrevBtn').addEventListener('click', () => {
+  calendarViewMonth--;
+  if (calendarViewMonth < 1) { calendarViewMonth = 12; calendarViewYear--; }
+  renderCalendarMonth();
+});
+document.getElementById('calNextBtn').addEventListener('click', () => {
+  calendarViewMonth++;
+  if (calendarViewMonth > 12) { calendarViewMonth = 1; calendarViewYear++; }
+  renderCalendarMonth();
+});
+document.getElementById('cancelScheduleBtn').addEventListener('click', () => {
+  document.getElementById('scheduleModal').classList.add('hidden');
+});
+document.getElementById('saveScheduleBtn').addEventListener('click', async () => {
+  const p = patients.find(x => x.id === scheduleModalPatientId);
+  const dates = Array.from(calendarSelected).sort();
+  if (dates.length === 0) return;
+  const btn = document.getElementById('saveScheduleBtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${API_BASE}/api/appointments`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ patient_id: p.id, appointment_date: dates[0] }),
+    });
+    if (!res.ok) throw new Error();
+    showToast(`Appointment set for ${p.name}`);
+    document.getElementById('scheduleModal').classList.add('hidden');
+    await loadPatients();
+  } catch (err) { showToast('Could not schedule appointment — is the server running?'); }
+  finally { btn.disabled = false; }
 });
 
 // --- Add new patient ---
