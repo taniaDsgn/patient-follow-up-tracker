@@ -229,12 +229,13 @@ td { word-wrap: break-word; }
 </div>
 
 <div class="modal-overlay hidden" id="noteDetailOverlay">
-  <div class="modal">
+  <div class="modal" onclick="event.stopPropagation()">
     <h2 id="noteDetailPatientName">Note</h2>
     <p class="modal-body" id="noteDetailText" style="color: var(--text); line-height:1.6;"></p>
     <p class="note-meta" id="noteDetailMeta" style="margin-top:14px; font-size:12px; color:var(--text-muted);"></p>
-    <div class="modal-actions" style="margin-top:16px;">
-      <button class="btn" id="closeNoteDetailBtn">Close</button>
+    <div class="modal-actions" style="margin-top:16px; justify-content: flex-end;">
+      <button class="btn" id="modalDeleteNoteBtn" style="color:#B91C1C; border-color:#B91C1C;">Delete</button>
+      <button class="btn btn-primary" id="modalEditNoteBtn">Edit</button>
     </div>
   </div>
 </div>
@@ -438,11 +439,11 @@ function renderTable() {
   const list = getVisiblePatients();
 
   document.getElementById('patientCount').textContent = `${patients.length} patient${patients.length === 1 ? '' : 's'} total`;
-  document.getElementById('chipUrgent').innerHTML = `<span class="chip-dot" style="background:#B91C1C"></span>Needs follow-up<span class="chip-count" style="background:#FEE2E2;color:#B91C1C">${patients.filter(p => p.status === 'urgent' && !p.isPaused).length}</span>`;
-  document.getElementById('chipNote').innerHTML = `<span class="chip-dot" style="background:#92400E"></span>Follow-up logged<span class="chip-count" style="background:#FEF3C7;color:#92400E">${patients.filter(p => p.status === 'note' && !p.isPaused).length}</span>`;
-  document.getElementById('chipVacation').innerHTML = `<span class="chip-dot" style="background:#1E40AF"></span>On vacation<span class="chip-count" style="background:#DBEAFE;color:#1E40AF">${patients.filter(p => p.onVacation).length}</span>`;
-  document.getElementById('chipPaused').innerHTML = `<span class="chip-dot" style="background:#52525B"></span>Paused<span class="chip-count" style="background:#F4F4F5;color:#52525B">${patients.filter(p => p.isPaused).length}</span>`;
-  document.getElementById('chipWaitlist').innerHTML = `<span class="chip-dot" style="background:#0F766E"></span>Waitlist<span class="chip-count" style="background:#CCFBF1;color:#0F766E">${patients.filter(p => p.waiting).length}</span>`;
+  document.getElementById('chipUrgent').innerHTML = `Needs follow-up<span class="chip-count" style="background:#FEE2E2;color:#B91C1C">${patients.filter(p => p.status === 'urgent' && !p.isPaused).length}</span>`;
+  document.getElementById('chipNote').innerHTML = `Follow-up logged<span class="chip-count" style="background:#FEF3C7;color:#92400E">${patients.filter(p => p.status === 'note' && !p.isPaused).length}</span>`;
+  document.getElementById('chipVacation').innerHTML = `On vacation<span class="chip-count" style="background:#DBEAFE;color:#1E40AF">${patients.filter(p => p.onVacation).length}</span>`;
+  document.getElementById('chipPaused').innerHTML = `Paused<span class="chip-count" style="background:#F4F4F5;color:#52525B">${patients.filter(p => p.isPaused).length}</span>`;
+  document.getElementById('chipWaitlist').innerHTML = `Waitlist<span class="chip-count" style="background:#CCFBF1;color:#0F766E">${patients.filter(p => p.waiting).length}</span>`;
 
   list.forEach(p => {
     const sortedAppts = [...p.appointments].sort();
@@ -481,25 +482,12 @@ function renderTable() {
       </td>
       <td>
         ${currentNote
-          ? `<div class="note-text note-clickable" data-view-note="${p.id}:${currentNote.id}">${currentNote.text}</div>
-             <div class="row-links">
-               <span class="link-btn" data-edit-note="${p.id}:${currentNote.id}">Edit</span>
-               <span class="link-btn" data-delete-note="${p.id}:${currentNote.id}">Delete</span>
-             </div>`
+          ? `<div class="note-text note-clickable" data-view-note="${p.id}:${currentNote.id}">${currentNote.text}</div>`
           : `<div class="note-text">No current note</div>`}
-        ${shownPrevious.map(n => `
-          <div class="note-text note-clickable" data-view-note="${p.id}:${n.id}" style="margin-top:4px; opacity:0.75;">${n.text}</div>
-        `).join('')}
-        ${olderNotes.length > 0 ? `<span class="note-count" data-history="${p.id}">+${olderNotes.length} earlier — view all</span>` : ''}
+        ${previousNotes.length > 0 ? `<span class="note-count" data-history="${p.id}">${previousNotes.length} earlier note${previousNotes.length > 1 ? 's' : ''} — view</span>` : ''}
         <div class="history-panel ${openHistoryId === p.id ? 'open' : ''}" id="history-${p.id}">
-          ${olderNotes.slice().reverse().map(n => `
-            <div class="history-item">
-              <div class="note-clickable" data-view-note="${p.id}:${n.id}">${n.text}</div>
-              <div class="row-links">
-                <span class="link-btn" data-edit-note="${p.id}:${n.id}">Edit</span>
-                <span class="link-btn" data-delete-note="${p.id}:${n.id}">Delete</span>
-              </div>
-            </div>`).join('')}
+          ${previousNotes.slice().reverse().map(n => `
+            <div class="history-item note-clickable" data-view-note="${p.id}:${n.id}">${n.text}</div>`).join('')}
         </div>
         ${p.waiting ? `<div class="waitlist-tag">🕐 Waiting: ${p.preferredTime || 'any opening'}</div>` : ''}
       </td>
@@ -511,7 +499,7 @@ function renderTable() {
       </td>
       <td>
         ${nextAppt ? nextAppt : '<span class="note-text">Not booked</span>'}
-        <div class="row-links"><span class="link-btn" data-schedule="${p.id}">${sortedAppts.length ? 'Edit' : 'Schedule'}</span></div>
+        <div class="row-links"><span class="link-btn" data-schedule="${p.id}">${nextAppt ? 'Edit' : 'Schedule'}</span></div>
       </td>
       <td>${p.treatment}</td>
       <td>
@@ -748,6 +736,7 @@ function attachRowHandlers() {
       const p = patients.find(x => x.id === id);
       const n = p.notes.find(x => x.id === parseInt(noteId, 10));
       if (!n) return;
+      viewingNote = { patientId: id, noteId: parseInt(noteId, 10) };
       document.getElementById('noteDetailPatientName').textContent = p.name;
       document.getElementById('noteDetailText').textContent = n.text;
       document.getElementById('noteDetailMeta').textContent =
@@ -1007,8 +996,36 @@ document.getElementById('registerStaffBtn').addEventListener('click', () => {
 loginOverlay.classList.remove('hidden');
 renderAccountBox();
 
-document.getElementById('closeNoteDetailBtn').addEventListener('click', () => {
+let viewingNote = null;
+
+document.getElementById('noteDetailOverlay').addEventListener('click', () => {
   document.getElementById('noteDetailOverlay').classList.add('hidden');
+  viewingNote = null;
+});
+
+document.getElementById('modalEditNoteBtn').addEventListener('click', () => {
+  if (!viewingNote) return;
+  document.getElementById('noteDetailOverlay').classList.add('hidden');
+  openRowId = viewingNote.patientId;
+  openRowMode = 'edit-note';
+  openRowNoteId = viewingNote.noteId;
+  viewingNote = null;
+  renderTable();
+  const input = document.getElementById('noteInput');
+  if (input) input.focus();
+});
+
+document.getElementById('modalDeleteNoteBtn').addEventListener('click', async () => {
+  if (!viewingNote) return;
+  const p = patients.find(x => x.id === viewingNote.patientId);
+  try {
+    const res = await fetch(`${API_BASE}/api/notes/${viewingNote.noteId}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error();
+    document.getElementById('noteDetailOverlay').classList.add('hidden');
+    showToast(`Note deleted for ${p.name}`);
+    viewingNote = null;
+    await loadPatients();
+  } catch (err) { showToast('Could not delete note — is the server running?'); }
 });
 document.getElementById('calPrevBtn').addEventListener('click', () => {
   calendarViewMonth--;
