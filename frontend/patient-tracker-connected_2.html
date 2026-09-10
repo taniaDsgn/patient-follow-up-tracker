@@ -221,7 +221,19 @@ td { word-wrap: break-word; }
 
   .cal-month { display: inline-block; vertical-align: top; margin: 10px 16px 4px 0; }
   .cal-month-label { font-size: 13px; font-weight: 600; }
-  .cal-nav { display: flex; align-items: center; justify-content: space-between; margin: 0 auto 14px; width: 214px; }
+  .schedule-popover {
+  display: none;
+  position: absolute;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.15);
+  padding: 20px 24px;
+  z-index: 150;
+  width: 280px;
+}
+.schedule-popover:not(.hidden) { display: block; }
+.cal-nav { display: flex; align-items: center; justify-content: space-between; margin: 0 auto 14px; width: 214px; }
 .cal-nav-btn { border: 1px solid var(--border); background: var(--surface); border-radius: 6px; width: 28px; height: 28px; cursor: pointer; font-size: 16px; color: var(--text); }
 .cal-nav-btn:hover { border-color: #101828; }
 .cal-grid { display: grid; grid-template-columns: repeat(7, 28px); gap: 3px; margin: 0 auto; justify-content: center; }
@@ -311,19 +323,17 @@ td { word-wrap: break-word; }
   </div>
 </div>
 
-<div class="modal-overlay hidden" id="scheduleModal">
-  <div class="modal" style="max-width: 320px; text-align: center;">
-    <h2 id="scheduleModalName" style="text-align: center;">Schedule an appointment</h2>
-    <div class="cal-nav">
-      <button type="button" class="cal-nav-btn" id="calPrevBtn">‹</button>
-      <div class="cal-month-label" id="calMonthLabel"></div>
-      <button type="button" class="cal-nav-btn" id="calNextBtn">›</button>
-    </div>
-    <div id="calendarWrap"></div>
-    <div class="modal-actions" style="margin-top:16px; justify-content: center;">
-      <button class="btn btn-primary" id="saveScheduleBtn">Save appointment</button>
-      <button class="btn" id="cancelScheduleBtn">Cancel</button>
-    </div>
+<div class="schedule-popover hidden" id="scheduleModal">
+  <h2 id="scheduleModalName" style="text-align: center; font-size: 15px; margin-bottom: 14px;">Schedule an appointment</h2>
+  <div class="cal-nav">
+    <button type="button" class="cal-nav-btn" id="calPrevBtn">‹</button>
+    <div class="cal-month-label" id="calMonthLabel"></div>
+    <button type="button" class="cal-nav-btn" id="calNextBtn">›</button>
+  </div>
+  <div id="calendarWrap"></div>
+  <div class="modal-actions" style="margin-top:16px; justify-content: center;">
+    <button class="btn btn-primary" id="saveScheduleBtn">Save</button>
+    <button class="btn" id="cancelScheduleBtn">Cancel</button>
   </div>
 </div>
 <div class="modal-overlay hidden" id="settingsModal">
@@ -351,6 +361,50 @@ td { word-wrap: break-word; }
     <div id="myActivityList" style="max-height:280px; overflow-y:auto; margin-top:4px;"></div>
     <div class="modal-actions" style="margin-top:16px;">
       <button class="btn" id="closeActivityBtn">Close</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay hidden" id="vacationModal">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2 id="vacationModalName">Log vacation</h2>
+    <div class="expand-field-label" style="margin-top:8px;">From</div>
+    <input type="date" id="vacationStart" class="staff-select">
+    <div class="expand-field-label" style="margin-top:12px;">To (expected return)</div>
+    <input type="date" id="vacationDate" class="staff-select">
+    <div class="expand-field-label" style="margin-top:12px;">Note (optional)</div>
+    <textarea id="vacationNote" placeholder="e.g. Traveling for work" style="width:100%; min-height:70px; box-sizing:border-box; font-family:inherit; font-size:14px; border:1px solid var(--border); border-radius:8px; padding:10px; resize:vertical; margin-top:4px;"></textarea>
+    <div class="modal-actions" style="margin-top:18px;">
+      <button class="btn" id="cancelVacationBtn">Cancel</button>
+      <button class="btn btn-primary" id="saveVacationBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="pauseModal">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2 id="pauseModalName">Pause treatment</h2>
+    <div class="expand-field-label" style="margin-top:8px;">Why is treatment paused? (e.g. insurance visits exhausted)</div>
+    <textarea id="pauseReasonInput" placeholder="Reason" style="width:100%; min-height:70px; box-sizing:border-box; font-family:inherit; font-size:14px; border:1px solid var(--border); border-radius:8px; padding:10px; resize:vertical; margin-top:4px;"></textarea>
+    <div class="expand-field-label" style="margin-top:12px;">Expected resume date</div>
+    <input type="date" id="resumeDateInput" class="staff-select">
+    <div class="modal-actions" style="margin-top:18px;">
+      <button class="btn" id="cancelPauseBtn">Cancel</button>
+      <button class="btn btn-primary" id="savePauseBtn">Mark as paused</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay hidden" id="addNoteModal">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2 id="addNoteModalName">Add note</h2>
+    <textarea id="addNoteInput" placeholder="What did they say?" style="width:100%; min-height:90px; box-sizing:border-box; font-family:inherit; font-size:14px; line-height:1.6; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:12px; resize:vertical; margin-top:8px;"></textarea>
+    <div class="waitlist-check-row" style="margin-top:10px;">
+      <input type="checkbox" id="addNoteWaitlistCheck">
+      <label for="addNoteWaitlistCheck">No opening available — add to waitlist</label>
+    </div>
+    <input type="text" id="addNotePreferredTime" placeholder="Preferred time, e.g. Tuesday afternoons" class="staff-select" style="display:none; margin-top:8px;">
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn" id="cancelAddNoteBtn">Cancel</button>
+      <button class="btn btn-primary" id="saveAddNoteBtn">Save note</button>
     </div>
   </div>
 </div>
@@ -560,7 +614,7 @@ function renderTable() {
         ${p.onVacation ? `
           <div class="days-overdue">${p.vacationStart ? p.vacationStart + ' – ' : ''}${p.returnDate || ''}</div>
           <div class="row-links">
-            <span class="link-btn" data-edit-vacation="${p.id}">Edit</span>
+            <span class="link-btn" data-edit-vacation-modal="${p.id}">Edit</span>
             <span class="link-btn" data-end-vacation="${p.id}">End</span>
           </div>` : ''}
         ${showAttemptsFlag ? `<div class="attempts-flag">⚠ ${previousNotes.length + 1} attempts, no response</div>` : ''}
@@ -606,72 +660,23 @@ function renderTable() {
     if (openRowId === p.id) {
       const expandTr = document.createElement('tr');
       expandTr.className = 'expand-row';
-      if (openRowMode === 'note' || openRowMode === 'edit-note') {
-        const existingText = openRowMode === 'edit-note' ? p.notes.find(n => n.id === openRowNoteId).text : '';
-        const label = openRowMode === 'edit-note' ? `Edit note for ${p.name}` : `New note for ${p.name}`;
-        const saveLabel = openRowMode === 'edit-note' ? 'Save changes' : 'Save note';
+      if (openRowMode === 'edit-note') {
+        const existingText = p.notes.find(n => n.id === openRowNoteId).text;
         expandTr.innerHTML = `
           <td colspan="7">
             <div class="expand-content">
               <div style="flex:1; min-width:240px;">
-                <span class="expand-field-label">${label}</span>
+                <span class="expand-field-label">Edit note for ${p.name}</span>
                 <textarea id="noteInput" placeholder="What did they say?">${existingText}</textarea>
-                ${openRowMode === 'note' ? `
-                  <div class="waitlist-check-row">
-                    <input type="checkbox" id="waitlistCheck" ${waitlistChecked ? 'checked' : ''}>
-                    <label for="waitlistCheck">No opening available — add to waitlist</label>
-                  </div>
-                  ${waitlistChecked ? `<input type="text" id="preferredTimeInput" placeholder="Preferred time, e.g. Tuesday afternoons" style="width:100%; margin-top:6px;">` : ''}
-                ` : ''}
               </div>
               <div style="display:flex; gap:8px; align-self:flex-end;">
-                <button class="btn btn-primary" id="saveNoteBtn">${saveLabel}</button>
+                <button class="btn btn-primary" id="saveNoteBtn">Save changes</button>
                 <button class="btn" id="cancelBtn">Cancel</button>
               </div>
             </div>
           </td>`;
-      } else if (openRowMode === 'vacation' || openRowMode === 'edit-vacation') {
-        const isEdit = openRowMode === 'edit-vacation';
-        expandTr.innerHTML = `
-          <td colspan="7">
-            <div class="expand-content">
-              <div>
-                <span class="expand-field-label">From</span>
-                <input type="date" id="vacationStart">
-              </div>
-              <div>
-                <span class="expand-field-label">To (expected return)</span>
-                <input type="date" id="vacationDate">
-              </div>
-              <div style="flex:1; min-width:200px;">
-                <span class="expand-field-label">Note (optional)</span>
-                <textarea id="vacationNote" placeholder="e.g. Traveling for work"></textarea>
-              </div>
-              <div style="display:flex; gap:8px; align-self:flex-end;">
-                <button class="btn btn-primary" id="saveVacationBtn">${isEdit ? 'Save changes' : 'Log vacation'}</button>
-                <button class="btn" id="cancelBtn">Cancel</button>
-              </div>
-            </div>
-          </td>`;
-      } else if (openRowMode === 'pause') {
-        expandTr.innerHTML = `
-          <td colspan="7">
-            <div class="expand-content">
-              <div style="flex:1; min-width:220px;">
-                <span class="expand-field-label">Why is treatment paused? (e.g. insurance visits exhausted)</span>
-                <textarea id="pauseReasonInput" placeholder="Reason"></textarea>
-              </div>
-              <div>
-                <span class="expand-field-label">Expected resume date</span>
-                <input type="date" id="resumeDateInput">
-              </div>
-              <div style="display:flex; gap:8px; align-self:flex-end;">
-                <button class="btn btn-primary" id="savePauseBtn">Mark as paused</button>
-                <button class="btn" id="cancelBtn">Cancel</button>
-              </div>
-            </div>
-          </td>`;
-      } else if (openRowMode === 'schedule') {
+    
+        } else if (openRowMode === 'schedule') {
         expandTr.innerHTML = `
           <td colspan="7">
             <div class="expand-field-label">Click a date to select — ${p.name}</div>
@@ -694,10 +699,10 @@ let calendarViewYear = today.getFullYear();
 let calendarViewMonth = today.getMonth() + 1;
 let scheduleModalPatientId = null;
 
-function openScheduleModal(patientId) {
+function openScheduleModal(patientId, anchorEl) {
   scheduleModalPatientId = patientId;
   const p = patients.find(x => x.id === patientId);
-  document.getElementById('scheduleModalName').textContent = `Schedule an appointment — ${p.name}`;
+  document.getElementById('scheduleModalName').textContent = `Schedule — ${p.name}`;
   calendarSelected = new Set(p.appointments);
   if (calendarSelected.size > 0) {
     const firstDate = new Date(Array.from(calendarSelected)[0] + 'T00:00:00');
@@ -708,7 +713,16 @@ function openScheduleModal(patientId) {
     calendarViewMonth = today.getMonth() + 1;
   }
   renderCalendarMonth();
-  document.getElementById('scheduleModal').classList.remove('hidden');
+
+  const popover = document.getElementById('scheduleModal');
+  popover.classList.remove('hidden');
+
+  const rect = anchorEl.getBoundingClientRect();
+  const popW = 280;
+  let left = rect.left + window.scrollX;
+  if (left + popW > window.innerWidth - 16) left = window.innerWidth - popW - 16;
+  popover.style.left = `${left}px`;
+  popover.style.top = `${rect.bottom + window.scrollY + 6}px`;
 }
 
 function renderCalendarMonth() {
@@ -754,14 +768,9 @@ function showToast(msg) {
 
 function attachRowHandlers() {
   document.querySelectorAll('.note-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.id;
-      openRowId = (openRowId === id && openRowMode === 'note') ? null : id;
-      openRowMode = 'note';
-      waitlistChecked = false;
-      renderTable();
-      const input = document.getElementById('noteInput');
-      if (input) input.focus();
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openAddNoteModal(btn.dataset.id);
     });
   });
   document.querySelectorAll('.overflow-toggle').forEach(btn => {
@@ -775,19 +784,15 @@ function attachRowHandlers() {
     });
   });
   document.querySelectorAll('.vacation-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.id;
-      openRowId = (openRowId === id && openRowMode === 'vacation') ? null : id;
-      openRowMode = 'vacation';
-      renderTable();
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openVacationModal(btn.dataset.id, false);
     });
   });
   document.querySelectorAll('.pause-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.id;
-      openRowId = (openRowId === id && openRowMode === 'pause') ? null : id;
-      openRowMode = 'pause';
-      renderTable();
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openPauseModal(btn.dataset.id);
     });
   });
   document.querySelectorAll('[data-resume]').forEach(el => {
@@ -805,8 +810,9 @@ function attachRowHandlers() {
     });
   });
   document.querySelectorAll('[data-schedule]').forEach(el => {
-    el.addEventListener('click', () => {
-      openScheduleModal(el.dataset.schedule);
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openScheduleModal(el.dataset.schedule, e.target);
     });
   });
   document.querySelectorAll('.note-count').forEach(el => {
@@ -854,11 +860,10 @@ function attachRowHandlers() {
       } catch (err) { showToast('Could not delete note — is the server running?'); }
     });
   });
-  document.querySelectorAll('[data-edit-vacation]').forEach(el => {
-    el.addEventListener('click', () => {
-      openRowId = el.dataset.editVacation;
-      openRowMode = 'edit-vacation';
-      renderTable();
+  document.querySelectorAll('[data-edit-vacation-modal]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openVacationModal(el.dataset.editVacationModal, true);
     });
   });
   document.querySelectorAll('[data-end-vacation]').forEach(el => {
@@ -926,53 +931,6 @@ function attachRowHandlers() {
       } catch (err) { showToast('Could not save note — is the server running?'); }
       finally { saveNoteBtn.disabled = false; }
     }
-  });
-
-  const saveVacationBtn = document.getElementById('saveVacationBtn');
-  if (saveVacationBtn) saveVacationBtn.addEventListener('click', async () => {
-    const startVal = document.getElementById('vacationStart').value;
-    const dateVal = document.getElementById('vacationDate').value;
-    const noteVal = document.getElementById('vacationNote').value.trim();
-    if (!dateVal) return;
-    const p = patients.find(x => x.id === openRowId);
-    const wasEdit = openRowMode === 'edit-vacation';
-    saveVacationBtn.disabled = true;
-    try {
-      const res = await fetch(`${API_BASE}/api/vacation`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ patient_id: p.id, on_vacation: true, vacation_start: startVal || null, expected_return_date: dateVal }),
-      });
-      if (!res.ok) throw new Error();
-      if (noteVal) {
-        await fetch(`${API_BASE}/api/notes`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ patient_id: p.id, note_text: noteVal, note_date: new Date().toISOString().slice(0,19), created_by: currentStaff }),
-        });
-      }
-      showToast(wasEdit ? `Vacation updated for ${p.name}` : `Vacation logged for ${p.name}`);
-      openRowId = null;
-      await loadPatients();
-    } catch (err) { showToast('Could not update vacation — is the server running?'); }
-    finally { saveVacationBtn.disabled = false; }
-  });
-
-  const savePauseBtn = document.getElementById('savePauseBtn');
-  if (savePauseBtn) savePauseBtn.addEventListener('click', async () => {
-    const reason = document.getElementById('pauseReasonInput').value.trim();
-    const resumeDate = document.getElementById('resumeDateInput').value;
-    const p = patients.find(x => x.id === openRowId);
-    savePauseBtn.disabled = true;
-    try {
-      const res = await fetch(`${API_BASE}/api/paused`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ patient_id: p.id, is_paused: true, pause_reason: reason || null, resume_date: resumeDate || null }),
-      });
-      if (!res.ok) throw new Error();
-      showToast(`${p.name} marked as paused`);
-      openRowId = null;
-      await loadPatients();
-    } catch (err) { showToast('Could not update paused status — is the server running?'); }
-    finally { savePauseBtn.disabled = false; }
   });
 
 }
@@ -1256,6 +1214,138 @@ document.getElementById('calNextBtn').addEventListener('click', () => {
   renderCalendarMonth();
 });
 document.getElementById('cancelScheduleBtn').addEventListener('click', () => {
+  document.getElementById('scheduleModal').classList.add('hidden');
+});
+let vacationModalPatientId = null;
+
+function openVacationModal(patientId, isEdit) {
+  vacationModalPatientId = patientId;
+  const p = patients.find(x => x.id === patientId);
+  document.getElementById('vacationModalName').textContent = `${isEdit ? 'Edit vacation' : 'Log vacation'} — ${p.name}`;
+  document.getElementById('vacationStart').value = '';
+  document.getElementById('vacationDate').value = '';
+  document.getElementById('vacationNote').value = '';
+  document.getElementById('vacationModal').classList.remove('hidden');
+}
+document.getElementById('cancelVacationBtn').addEventListener('click', () => {
+  document.getElementById('vacationModal').classList.add('hidden');
+});
+document.getElementById('vacationModal').addEventListener('click', () => {
+  document.getElementById('vacationModal').classList.add('hidden');
+});
+document.getElementById('saveVacationBtn').addEventListener('click', async (e) => {
+  e.stopPropagation();
+  const startVal = document.getElementById('vacationStart').value;
+  const dateVal = document.getElementById('vacationDate').value;
+  const noteVal = document.getElementById('vacationNote').value.trim();
+  if (!dateVal) return;
+  const p = patients.find(x => x.id === vacationModalPatientId);
+  const btn = document.getElementById('saveVacationBtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${API_BASE}/api/vacation`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ patient_id: p.id, on_vacation: true, vacation_start: startVal || null, expected_return_date: dateVal }),
+    });
+    if (!res.ok) throw new Error();
+    if (noteVal) {
+      await fetch(`${API_BASE}/api/notes`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patient_id: p.id, note_text: noteVal, note_date: new Date().toISOString().slice(0,19), created_by: currentStaff }),
+      });
+    }
+    document.getElementById('vacationModal').classList.add('hidden');
+    showToast(`Vacation saved for ${p.name}`);
+    await loadPatients();
+  } catch (err) { showToast('Could not update vacation — is the server running?'); }
+  finally { btn.disabled = false; }
+});
+
+let pauseModalPatientId = null;
+
+function openPauseModal(patientId) {
+  pauseModalPatientId = patientId;
+  const p = patients.find(x => x.id === patientId);
+  document.getElementById('pauseModalName').textContent = `Pause — ${p.name}`;
+  document.getElementById('pauseReasonInput').value = '';
+  document.getElementById('resumeDateInput').value = '';
+  document.getElementById('pauseModal').classList.remove('hidden');
+}
+document.getElementById('cancelPauseBtn').addEventListener('click', () => {
+  document.getElementById('pauseModal').classList.add('hidden');
+});
+let addNoteModalPatientId = null;
+
+function openAddNoteModal(patientId) {
+  addNoteModalPatientId = patientId;
+  const p = patients.find(x => x.id === patientId);
+  document.getElementById('addNoteModalName').textContent = `Add note — ${p.name}`;
+  document.getElementById('addNoteInput').value = '';
+  document.getElementById('addNoteWaitlistCheck').checked = false;
+  document.getElementById('addNotePreferredTime').style.display = 'none';
+  document.getElementById('addNotePreferredTime').value = '';
+  document.getElementById('addNoteModal').classList.remove('hidden');
+  document.getElementById('addNoteInput').focus();
+}
+document.getElementById('cancelAddNoteBtn').addEventListener('click', () => {
+  document.getElementById('addNoteModal').classList.add('hidden');
+});
+document.getElementById('addNoteModal').addEventListener('click', () => {
+  document.getElementById('addNoteModal').classList.add('hidden');
+});
+document.getElementById('addNoteWaitlistCheck').addEventListener('change', (e) => {
+  document.getElementById('addNotePreferredTime').style.display = e.target.checked ? 'block' : 'none';
+});
+document.getElementById('saveAddNoteBtn').addEventListener('click', async (e) => {
+  e.stopPropagation();
+  const text = document.getElementById('addNoteInput').value.trim();
+  if (!text) return;
+  const p = patients.find(x => x.id === addNoteModalPatientId);
+  const btn = document.getElementById('saveAddNoteBtn');
+  btn.disabled = true;
+  try {
+    const nowIso = new Date().toISOString().slice(0, 19);
+    const res = await fetch(`${API_BASE}/api/notes`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ patient_id: p.id, note_text: text, note_date: nowIso, created_by: currentStaff }),
+    });
+    if (!res.ok) throw new Error();
+    if (document.getElementById('addNoteWaitlistCheck').checked) {
+      await fetch(`${API_BASE}/api/waitlist`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patient_id: p.id, waiting_for_opening: true, preferred_time: document.getElementById('addNotePreferredTime').value.trim() }),
+      });
+    }
+    document.getElementById('addNoteModal').classList.add('hidden');
+    showToast(`Note saved for ${p.name}`);
+    await loadPatients();
+  } catch (err) { showToast('Could not save note — is the server running?'); }
+  finally { btn.disabled = false; }
+});
+document.getElementById('pauseModal').addEventListener('click', () => {
+  document.getElementById('pauseModal').classList.add('hidden');
+});
+document.getElementById('savePauseBtn').addEventListener('click', async (e) => {
+  e.stopPropagation();
+  const reason = document.getElementById('pauseReasonInput').value.trim();
+  const resumeDate = document.getElementById('resumeDateInput').value;
+  const p = patients.find(x => x.id === pauseModalPatientId);
+  const btn = document.getElementById('savePauseBtn');
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${API_BASE}/api/paused`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ patient_id: p.id, is_paused: true, pause_reason: reason || null, resume_date: resumeDate || null }),
+    });
+    if (!res.ok) throw new Error();
+    document.getElementById('pauseModal').classList.add('hidden');
+    showToast(`${p.name} marked as paused`);
+    await loadPatients();
+  } catch (err) { showToast('Could not update paused status — is the server running?'); }
+  finally { btn.disabled = false; }
+});
+document.getElementById('scheduleModal').addEventListener('click', (e) => e.stopPropagation());
+document.addEventListener('click', () => {
   document.getElementById('scheduleModal').classList.add('hidden');
 });
 document.getElementById('saveScheduleBtn').addEventListener('click', async () => {
