@@ -192,10 +192,10 @@ td { word-wrap: break-word; }
 
   .cal-month { display: inline-block; vertical-align: top; margin: 10px 16px 4px 0; }
   .cal-month-label { font-size: 13px; font-weight: 600; }
-.cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; max-width: 220px; }
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; margin: 0 auto 14px; width: 214px; }
 .cal-nav-btn { border: 1px solid var(--border); background: var(--surface); border-radius: 6px; width: 28px; height: 28px; cursor: pointer; font-size: 16px; color: var(--text); }
 .cal-nav-btn:hover { border-color: #101828; }
-  .cal-grid { display: grid; grid-template-columns: repeat(7, 28px); gap: 3px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 28px); gap: 3px; margin: 0 auto; justify-content: center; }
   .cal-dow { font-size: 10px; color: var(--text-muted); text-align: center; padding-bottom: 2px; }
   .cal-day { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 12px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
   .cal-day:hover { border-color: #101828; }
@@ -263,15 +263,15 @@ td { word-wrap: break-word; }
 </div>
 
 <div class="modal-overlay hidden" id="scheduleModal">
-  <div class="modal">
-    <h2 id="scheduleModalName">Schedule appointment</h2>
+  <div class="modal" style="max-width: 320px; text-align: center;">
+    <h2 id="scheduleModalName" style="text-align: center;">Schedule an appointment</h2>
     <div class="cal-nav">
       <button type="button" class="cal-nav-btn" id="calPrevBtn">‹</button>
       <div class="cal-month-label" id="calMonthLabel"></div>
       <button type="button" class="cal-nav-btn" id="calNextBtn">›</button>
     </div>
     <div id="calendarWrap"></div>
-    <div class="modal-actions" style="margin-top:16px;">
+    <div class="modal-actions" style="margin-top:16px; justify-content: center;">
       <button class="btn btn-primary" id="saveScheduleBtn">Save appointment</button>
       <button class="btn" id="cancelScheduleBtn">Cancel</button>
     </div>
@@ -623,7 +623,7 @@ let scheduleModalPatientId = null;
 function openScheduleModal(patientId) {
   scheduleModalPatientId = patientId;
   const p = patients.find(x => x.id === patientId);
-  document.getElementById('scheduleModalName').textContent = `Schedule appointment — ${p.name}`;
+  document.getElementById('scheduleModalName').textContent = `Schedule an appointment — ${p.name}`;
   calendarSelected = new Set(p.appointments);
   if (calendarSelected.size > 0) {
     const firstDate = new Date(Array.from(calendarSelected)[0] + 'T00:00:00');
@@ -645,10 +645,13 @@ function renderCalendarMonth() {
     if (cell.classList.contains('empty')) return;
     cell.addEventListener('click', () => {
       const dateStr = cell.dataset.date;
-      calendarSelected.clear();
-      calendarSelected.add(dateStr);
-      wrap.querySelectorAll('.cal-day').forEach(c => c.classList.remove('selected'));
-      cell.classList.add('selected');
+      if (calendarSelected.has(dateStr)) {
+        calendarSelected.delete(dateStr);
+        cell.classList.remove('selected');
+      } else {
+        calendarSelected.add(dateStr);
+        cell.classList.add('selected');
+      }
     });
   });
 }
