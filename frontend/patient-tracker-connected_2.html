@@ -51,20 +51,27 @@
   .subtitle { color: var(--text-muted); font-size: 14px; margin: 0 0 24px; }
 
   .top-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 20px; }
-  .account-box {
-  display: flex; align-items: center; gap: 10px;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 999px; padding: 6px 16px 6px 8px;
-  font-size: 14px; white-space: nowrap;
-}
-.account-avatar {
-  width: 28px; height: 28px; border-radius: 50%; background: #EDECEA;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 600; color: #8A8A8A; flex-shrink: 0;
-}
-.account-box .staff-name { color: var(--text); font-weight: 500; }
-.account-box .logout-link { color: var(--text-muted); cursor: pointer; text-decoration: none; margin-left: 4px; }
+  .account-box { position: relative; display: flex; align-items: center; gap: 10px; }
+.account-box .logout-link { color: var(--text-muted); cursor: pointer; font-size: 14px; white-space: nowrap; }
 .account-box .logout-link:hover { color: var(--text); text-decoration: underline; }
+.account-avatar {
+  width: 36px; height: 36px; border-radius: 50%; background: #EDECEA;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 600; color: #8A8A8A; cursor: pointer;
+  border: 1px solid var(--border);
+}
+.account-dropdown-menu {
+  display: none; position: absolute; right: 0; top: calc(100% + 8px);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.1); z-index: 60; overflow: hidden; min-width: 160px;
+}
+.account-dropdown-menu.open { display: block; }
+.account-dropdown-name { padding: 10px 16px; font-size: 13px; font-weight: 600; color: var(--text); border-bottom: 1px solid var(--border); }
+.account-dropdown-menu button {
+  display: block; width: 100%; text-align: left; padding: 10px 16px; font-size: 14px;
+  border: none; background: none; cursor: pointer; font-family: inherit; color: var(--text);
+}
+.account-dropdown-menu button:hover { background: #F9FAFB; }
 
   .banner {
     background: transparent; border: none; padding: 0;
@@ -85,9 +92,9 @@
   .chip-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; }
 .chip-count { font-size: 12px; font-weight: 600; border-radius: 999px; padding: 1px 8px; margin-left: 2px; }
 
-  .toolbar { display: flex; gap: 10px; margin-bottom: 16px; }
-  .search-input {
-    flex: 1; padding: 10px 14px; font-size: 14px; border: 1px solid var(--border);
+.toolbar { display: flex; gap: 10px; margin-bottom: 16px; justify-content: space-between; }
+.search-input {
+    width: 320px; padding: 10px 14px; font-size: 14px; border: 1px solid var(--border);
     border-radius: 8px; background: var(--surface); color: var(--text); font-family: inherit;
   }
   .search-input:focus { outline: none; border-color: #101828; }
@@ -253,11 +260,30 @@ td { word-wrap: break-word; }
 <div class="modal-overlay hidden" id="noteDetailOverlay">
   <div class="modal" onclick="event.stopPropagation()">
     <h2 id="noteDetailPatientName">Note</h2>
-    <p class="modal-body" id="noteDetailText" style="color: var(--text); line-height:1.6;"></p>
-    <p class="note-meta" id="noteDetailMeta" style="margin-top:14px; font-size:12px; color:var(--text-muted);"></p>
-    <div class="modal-actions" style="margin-top:16px; justify-content: flex-end;">
-      <button class="btn" id="modalDeleteNoteBtn" style="color:#B91C1C; border-color:#B91C1C;">Delete</button>
-      <button class="btn btn-primary" id="modalEditNoteBtn">Edit</button>
+
+    <div id="noteViewMode">
+      <p class="modal-body" id="noteDetailText" style="color: var(--text); line-height:1.6;"></p>
+      <p class="note-meta" id="noteDetailMeta" style="margin-top:14px; font-size:12px; color:var(--text-muted);"></p>
+      <div style="display:flex; align-items:center; gap:16px; margin-top:16px;">
+        <button class="btn btn-primary" id="modalEditNoteBtn">Edit</button>
+        <span id="modalDeleteNoteBtn" style="color:#B91C1C; font-size:12px; cursor:pointer; text-decoration:none;">Delete note</span>
+      </div>
+    </div>
+
+    <div id="noteEditMode" style="display:none;">
+      <textarea id="noteDetailEditInput" style="width:100%; min-height:90px; box-sizing:border-box; font-family:inherit; font-size:14px; line-height:1.6; color:var(--text); border:1px solid var(--border); border-radius:8px; padding:12px; resize:vertical;"></textarea>
+      <div class="modal-actions" style="margin-top:16px; justify-content: flex-end;">
+        <button class="btn" id="cancelEditNoteBtn">Cancel</button>
+        <button class="btn btn-primary" id="saveEditNoteBtn">Save changes</button>
+      </div>
+    </div>
+
+    <div id="noteConfirmDeleteMode" style="display:none;">
+      <p class="modal-body" style="color: var(--text);">Delete this note? This can't be undone.</p>
+      <div class="modal-actions" style="margin-top:16px; justify-content: flex-end;">
+        <button class="btn" id="cancelDeleteNoteBtn">Cancel</button>
+        <button class="btn" id="confirmDeleteNoteBtn" style="background:#B91C1C; color:white; border-color:#B91C1C;">Yes, delete</button>
+      </div>
     </div>
   </div>
 </div>
@@ -300,6 +326,34 @@ td { word-wrap: break-word; }
     </div>
   </div>
 </div>
+<div class="modal-overlay hidden" id="settingsModal">
+  <div class="modal">
+    <h2>Settings — <span id="settingsStaffName"></span></h2>
+    <div style="margin: 16px 0;">
+      <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+        <input type="checkbox" id="notifyToggle" style="width:18px; height:18px;">
+        <span>Desktop notifications</span>
+      </label>
+      <p class="note-meta" id="notifyStatusText" style="margin-top:6px; font-size:12px; color:var(--text-muted);"></p>
+    </div>
+    <div class="expand-field-label" style="margin-top:16px;">Change PIN</div>
+    <input type="password" id="newPinInput" class="staff-select" maxlength="4" inputmode="numeric" placeholder="New 4-digit PIN">
+    <div class="login-error" id="pinChangeError"></div>
+    <div class="modal-actions" style="margin-top:18px;">
+      <button class="btn" id="closeSettingsBtn">Close</button>
+      <button class="btn btn-primary" id="savePinBtn">Save PIN</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay hidden" id="activityModal">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2>My activity today</h2>
+    <div id="myActivityList" style="max-height:280px; overflow-y:auto; margin-top:4px;"></div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn" id="closeActivityBtn">Close</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <div class="wrap">
@@ -318,7 +372,7 @@ td { word-wrap: break-word; }
       </div>
       <p class="subtitle" id="todaySubtitle"></p>
     </div>
-    <button class="btn" id="notifyBtn">Enable desktop notifications</button>
+
     <div class="account-box" id="accountBox"></div>
   </div>
 
@@ -773,6 +827,7 @@ function attachRowHandlers() {
       document.getElementById('noteDetailText').textContent = n.text;
       document.getElementById('noteDetailMeta').textContent =
         `Logged by ${n.createdBy ? n.createdBy : 'unknown staff'} · ${formatDateTime(n.date)}`;
+      showNoteMode('view');
       document.getElementById('noteDetailOverlay').classList.remove('hidden');
     });
   });
@@ -946,27 +1001,6 @@ document.querySelectorAll('th[data-sort]').forEach(th => {
 document.getElementById('searchInput').addEventListener('input', renderTable);
 
 
-// --- Desktop notifications ---
-const notifyBtn = document.getElementById('notifyBtn');
-function updateNotifyBtnLabel() {
-  if (Notification.permission === 'granted') notifyBtn.textContent = 'Desktop notifications on';
-  else if (Notification.permission === 'denied') notifyBtn.textContent = 'Notifications blocked — check browser settings';
-  else notifyBtn.textContent = 'Enable desktop notifications';
-}
-if (typeof Notification !== 'undefined') {
-  updateNotifyBtnLabel();
-  notifyBtn.addEventListener('click', async () => {
-    if (Notification.permission === 'granted') {
-      const urgentCount = patients.filter(p => p.status === 'urgent' && !p.isPaused).length;
-      new Notification('Patient follow-up tracker', { body: `${urgentCount} patients still need a note today.` });
-      return;
-    }
-    const perm = await Notification.requestPermission();
-    updateNotifyBtnLabel();
-    if (perm === 'granted') new Notification('Notifications enabled', { body: "You'll get a desktop alert whenever a patient needs attention." });
-  });
-} else { notifyBtn.style.display = 'none'; }
-
 // --- PIN login ---
 let staffList = [
   { name: 'Alex Rivera', pin: '1111' },
@@ -985,8 +1019,33 @@ const pinError = document.getElementById('pinError');
 function renderAccountBox() {
   const initial = currentStaff ? currentStaff.charAt(0).toUpperCase() : '';
   accountBox.innerHTML = currentStaff
-    ? `<div class="account-avatar">${initial}</div><span class="staff-name">${currentStaff}</span><span class="logout-link" id="logoutLink">Log out</span>`
+    ? `<div class="account-avatar" id="accountAvatar">${initial}</div>
+       <div class="account-dropdown-menu" id="accountDropdownMenu">
+         <div class="account-dropdown-name">${currentStaff}</div>
+         <button id="activityLink">My activity today</button>
+         <button id="settingsLink">Settings</button>
+       </div>
+       <span class="logout-link" id="logoutLink">Log out</span>`
     : '';
+
+  const avatar = document.getElementById('accountAvatar');
+  if (avatar) avatar.addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('accountDropdownMenu').classList.toggle('open');
+  });
+
+  const activityLink = document.getElementById('activityLink');
+  if (activityLink) activityLink.addEventListener('click', () => {
+    document.getElementById('accountDropdownMenu').classList.remove('open');
+    openActivityModal();
+  });
+
+  const settingsLink = document.getElementById('settingsLink');
+  if (settingsLink) settingsLink.addEventListener('click', () => {
+    document.getElementById('accountDropdownMenu').classList.remove('open');
+    openSettingsModal();
+  });
+
   const logoutLink = document.getElementById('logoutLink');
   if (logoutLink) logoutLink.addEventListener('click', () => {
     currentStaff = null;
@@ -997,6 +1056,11 @@ function renderAccountBox() {
     loginOverlay.classList.remove('hidden');
   });
 }
+
+document.addEventListener('click', () => {
+  const menu = document.getElementById('accountDropdownMenu');
+  if (menu) menu.classList.remove('open');
+});
 
 function attemptLogin() {
   const pin = pinInput.value.trim();
@@ -1036,19 +1100,50 @@ document.getElementById('noteDetailOverlay').addEventListener('click', () => {
   viewingNote = null;
 });
 
+function showNoteMode(mode) {
+  document.getElementById('noteViewMode').style.display = mode === 'view' ? 'block' : 'none';
+  document.getElementById('noteEditMode').style.display = mode === 'edit' ? 'block' : 'none';
+  document.getElementById('noteConfirmDeleteMode').style.display = mode === 'confirm-delete' ? 'block' : 'none';
+}
+
 document.getElementById('modalEditNoteBtn').addEventListener('click', () => {
   if (!viewingNote) return;
-  document.getElementById('noteDetailOverlay').classList.add('hidden');
-  openRowId = viewingNote.patientId;
-  openRowMode = 'edit-note';
-  openRowNoteId = viewingNote.noteId;
-  viewingNote = null;
-  renderTable();
-  const input = document.getElementById('noteInput');
-  if (input) input.focus();
+  document.getElementById('noteDetailEditInput').value = document.getElementById('noteDetailText').textContent;
+  showNoteMode('edit');
 });
 
-document.getElementById('modalDeleteNoteBtn').addEventListener('click', async () => {
+document.getElementById('cancelEditNoteBtn').addEventListener('click', () => {
+  showNoteMode('view');
+});
+
+document.getElementById('saveEditNoteBtn').addEventListener('click', async () => {
+  if (!viewingNote) return;
+  const newText = document.getElementById('noteDetailEditInput').value.trim();
+  if (!newText) return;
+  const p = patients.find(x => x.id === viewingNote.patientId);
+  try {
+    const res = await fetch(`${API_BASE}/api/notes/${viewingNote.noteId}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ new_text: newText }),
+    });
+    if (!res.ok) throw new Error();
+    document.getElementById('noteDetailOverlay').classList.add('hidden');
+    showToast(`Note updated for ${p.name}`);
+    viewingNote = null;
+    await loadPatients();
+  } catch (err) { showToast('Could not update note — is the server running?'); }
+});
+
+document.getElementById('modalDeleteNoteBtn').addEventListener('click', () => {
+  if (!viewingNote) return;
+  showNoteMode('confirm-delete');
+});
+
+document.getElementById('cancelDeleteNoteBtn').addEventListener('click', () => {
+  showNoteMode('view');
+});
+
+document.getElementById('confirmDeleteNoteBtn').addEventListener('click', async () => {
   if (!viewingNote) return;
   const p = patients.find(x => x.id === viewingNote.patientId);
   try {
@@ -1059,6 +1154,96 @@ document.getElementById('modalDeleteNoteBtn').addEventListener('click', async ()
     viewingNote = null;
     await loadPatients();
   } catch (err) { showToast('Could not delete note — is the server running?'); }
+});
+
+function openSettingsModal() {
+  document.getElementById('settingsStaffName').textContent = currentStaff;
+  const granted = typeof Notification !== 'undefined' && Notification.permission === 'granted';
+  document.getElementById('notifyToggle').checked = granted;
+  updateNotifyStatusText();
+  document.getElementById('newPinInput').value = '';
+  document.getElementById('pinChangeError').textContent = '';
+  document.getElementById('settingsModal').classList.remove('hidden');
+}
+
+function openActivityModal() {
+  renderMyActivity();
+  document.getElementById('activityModal').classList.remove('hidden');
+}
+document.getElementById('closeActivityBtn').addEventListener('click', () => {
+  document.getElementById('activityModal').classList.add('hidden');
+});
+document.getElementById('activityModal').addEventListener('click', (e) => {
+  if (e.target.id === 'activityModal') document.getElementById('activityModal').classList.add('hidden');
+});
+
+function renderMyActivity() {
+  const todayStr = today.toISOString().slice(0, 10);
+  const myNotesToday = [];
+  patients.forEach(p => {
+    p.notes.forEach(n => {
+      if (n.createdBy === currentStaff && n.date.slice(0, 10) === todayStr) {
+        myNotesToday.push({ patientName: p.name, text: n.text, date: n.date });
+      }
+    });
+  });
+  myNotesToday.sort((a, b) => b.date.localeCompare(a.date));
+
+  const el = document.getElementById('myActivityList');
+  if (myNotesToday.length === 0) {
+    el.innerHTML = `<div style="padding:10px 16px; font-size:13px; color:var(--text-muted);">No notes logged today yet.</div>`;
+    return;
+  }
+  el.innerHTML = myNotesToday.map(n => `
+    <div style="padding:8px 16px; border-bottom:1px solid var(--border);">
+      <div style="font-size:13px; font-weight:600;">${n.patientName}</div>
+      <div style="font-size:12px; color:var(--text-muted);">${n.text}</div>
+    </div>
+  `).join('');
+}
+
+function updateNotifyStatusText() {
+  const el = document.getElementById('notifyStatusText');
+  if (typeof Notification === 'undefined') { el.textContent = 'Not supported in this browser.'; return; }
+  if (Notification.permission === 'denied') el.textContent = 'Blocked — enable in browser settings to turn on.';
+  else if (Notification.permission === 'granted') el.textContent = 'On — you\'ll get alerts for urgent patients.';
+  else el.textContent = 'Off.';
+}
+
+document.getElementById('notifyToggle').addEventListener('change', async (e) => {
+  if (e.target.checked) {
+    if (typeof Notification === 'undefined') { e.target.checked = false; return; }
+    const perm = await Notification.requestPermission();
+    e.target.checked = perm === 'granted';
+    if (perm === 'granted') {
+      const urgentCount = patients.filter(p => p.status === 'urgent' && !p.isPaused).length;
+      new Notification('Notifications enabled', { body: `${urgentCount} patients currently need a note.` });
+    }
+  }
+  updateNotifyStatusText();
+});
+
+document.getElementById('closeSettingsBtn').addEventListener('click', () => {
+  document.getElementById('settingsModal').classList.add('hidden');
+});
+document.getElementById('settingsModal').addEventListener('click', (e) => {
+  if (e.target.id === 'settingsModal') document.getElementById('settingsModal').classList.add('hidden');
+});
+
+document.getElementById('savePinBtn').addEventListener('click', () => {
+  const newPin = document.getElementById('newPinInput').value.trim();
+  if (!/^\d{4}$/.test(newPin)) {
+    document.getElementById('pinChangeError').textContent = 'Enter exactly 4 digits.';
+    return;
+  }
+  if (staffList.some(s => s.pin === newPin && s.name !== currentStaff)) {
+    document.getElementById('pinChangeError').textContent = 'That PIN is already in use — pick another.';
+    return;
+  }
+  const staffMember = staffList.find(s => s.name === currentStaff);
+  if (staffMember) staffMember.pin = newPin;
+  document.getElementById('settingsModal').classList.add('hidden');
+  showToast('PIN updated for this session');
 });
 document.getElementById('calPrevBtn').addEventListener('click', () => {
   calendarViewMonth--;
@@ -1121,7 +1306,9 @@ document.getElementById('saveNewPatientBtn').addEventListener('click', async () 
   finally { saveBtn.disabled = false; }
 });
 
-document.getElementById('todaySubtitle').textContent = 'Today — ' + today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+document.getElementById('todaySubtitle').textContent =
+  today.toLocaleDateString('en-US', { weekday: 'long' }) + ' • ' +
+  today.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
 document.getElementById('clinicNameDisplay').addEventListener('click', (e) => {
   e.stopPropagation();
