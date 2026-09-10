@@ -36,13 +36,35 @@
   .wrap { max-width: 1040px; margin: 0 auto; }
 
   h1 { font-size: 26px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.02em; }
+.clinic-dropdown-wrap { position: relative; display: inline-block; }
+.clinic-dropdown-menu {
+  display: none; position: absolute; left: 0; top: calc(100% + 4px);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.1); z-index: 50; overflow: hidden; min-width: 220px;
+}
+.clinic-dropdown-menu.open { display: block; }
+.clinic-dropdown-menu button {
+  display: block; width: 100%; text-align: left; padding: 10px 16px; font-size: 15px;
+  border: none; background: none; cursor: pointer; font-family: inherit; color: var(--text);
+}
+.clinic-dropdown-menu button:hover { background: #F9FAFB; }
   .subtitle { color: var(--text-muted); font-size: 14px; margin: 0 0 24px; }
 
   .top-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 20px; }
-  .account-box { font-size: 14px; color: var(--text-muted); text-align: right; white-space: nowrap; }
-  .account-box .staff-name { color: var(--text); font-weight: 600; }
-  .account-box .logout-link { color: var(--text-muted); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; margin-left: 8px; }
-  .account-box .logout-link:hover { color: var(--text); }
+  .account-box {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 999px; padding: 6px 16px 6px 8px;
+  font-size: 14px; white-space: nowrap;
+}
+.account-avatar {
+  width: 28px; height: 28px; border-radius: 50%; background: #EDECEA;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; color: #8A8A8A; flex-shrink: 0;
+}
+.account-box .staff-name { color: var(--text); font-weight: 500; }
+.account-box .logout-link { color: var(--text-muted); cursor: pointer; text-decoration: none; margin-left: 4px; }
+.account-box .logout-link:hover { color: var(--text); text-decoration: underline; }
 
   .banner {
     background: transparent; border: none; padding: 0;
@@ -283,7 +305,17 @@ td { word-wrap: break-word; }
 <div class="wrap">
   <div class="top-row">
     <div>
-      <h1>Patient follow-up tracker</h1>
+      <div class="clinic-dropdown-wrap">
+        <h1 id="clinicNameDisplay" style="cursor:pointer; display:inline-flex; align-items:center; gap:6px;">
+          Riverside Wellness Clinic
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M4 6l4 4 4-4" stroke="#99A1AF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </h1>
+        <div class="clinic-dropdown-menu" id="clinicDropdownMenu">
+          <button data-clinic="Riverside Wellness Clinic">Riverside Wellness Clinic</button>
+          <button data-clinic="Downtown Wellness Clinic">Downtown Wellness Clinic</button>
+          <button data-clinic="Eastside Wellness Clinic">Eastside Wellness Clinic</button>
+        </div>
+      </div>
       <p class="subtitle" id="todaySubtitle"></p>
     </div>
     <button class="btn" id="notifyBtn">Enable desktop notifications</button>
@@ -951,8 +983,9 @@ const pinInput = document.getElementById('pinInput');
 const pinError = document.getElementById('pinError');
 
 function renderAccountBox() {
+  const initial = currentStaff ? currentStaff.charAt(0).toUpperCase() : '';
   accountBox.innerHTML = currentStaff
-    ? `Riverside Wellness Clinic — <span class="staff-name">${currentStaff}</span><span class="logout-link" id="logoutLink">Log out</span>`
+    ? `<div class="account-avatar">${initial}</div><span class="staff-name">${currentStaff}</span><span class="logout-link" id="logoutLink">Log out</span>`
     : '';
   const logoutLink = document.getElementById('logoutLink');
   if (logoutLink) logoutLink.addEventListener('click', () => {
@@ -1089,6 +1122,21 @@ document.getElementById('saveNewPatientBtn').addEventListener('click', async () 
 });
 
 document.getElementById('todaySubtitle').textContent = 'Today — ' + today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+document.getElementById('clinicNameDisplay').addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.getElementById('clinicDropdownMenu').classList.toggle('open');
+});
+document.querySelectorAll('.clinic-dropdown-menu button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.getElementById('clinicNameDisplay').firstChild.textContent = btn.dataset.clinic + ' ';
+    document.getElementById('clinicDropdownMenu').classList.remove('open');
+  });
+});
+document.addEventListener('click', () => {
+  document.getElementById('clinicDropdownMenu').classList.remove('open');
+});
+
 loadPatients();
 </script>
 </body>
