@@ -606,11 +606,11 @@ async function loadPatients() {
 function getVisiblePatients() {
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
   let list = patients.filter(p => {
-    if (!activeFilter) return !p.vacationActive && !p.isPaused;
+    if (!activeFilter) return true;
     if (activeFilter === 'vacation') return p.onVacation;
     if (activeFilter === 'paused') return p.isPaused;
     if (activeFilter === 'waitlist') return p.waiting;
-    return p.status === activeFilter && !p.isPaused && !p.vacationActive;
+    return p.status === activeFilter;
   });
   if (q) list = list.filter(p => p.name.toLowerCase().includes(q));
   list = [...list].sort((a, b) => {
@@ -652,35 +652,17 @@ function renderTable() {
     const showAttemptsFlag = previousNotes.length >= 2 && days >= 14 && !p.isPaused;
 
     const tr = document.createElement('tr');
-
-    if (activeFilter === 'vacation') {
-      tr.innerHTML = `
-        <td class="patient-name">${p.name}</td>
-        <td>
-          <span class="status-pill vacation">On vacation</span>
-          <div class="days-overdue">${p.vacationStart ? p.vacationStart + ' – ' : ''}${p.returnDate || ''}</div>
-        </td>
-        <td>${p.vacationNote ? `<div class="note-text">${p.vacationNote}</div>` : `<div class="note-text">No current note</div>`}</td>
-        <td></td>
-        <td></td>
-        <td></td>
-        <td>
-          <div class="row-links">
-            <span class="link-btn" data-edit-vacation-modal="${p.id}">Edit</span>
-            <span class="link-btn" data-end-vacation="${p.id}">End</span>
-          </div>
-        </td>
-      `;
-      tbody.appendChild(tr);
-      return;
-    }
-
     tr.innerHTML = `
       <td class="patient-name">${p.name}</td>
       <td>
         ${p.isPaused
   ? `<span class="status-pill paused">Paused</span>`
   : (p.status !== 'none' ? `<span class="status-pill ${p.status}">${statusLabel[p.status]}</span>` : '')}
+        ${p.onVacation
+          ? (p.vacationActive
+              ? `<span class="status-pill vacation">On vacation</span>`
+              : `<span class="status-pill" style="background:#F4F4F5;color:#52525B;">🗓 Vacation coming</span>`)
+          : ''}
         ${p.isPaused ? `
           <div class="days-overdue">${p.pauseReason || 'No reason logged'}</div>
           ${p.resumeDate ? `<div class="days-overdue">Resume: ${formatDate(p.resumeDate)}</div>` : ''}
@@ -689,6 +671,13 @@ function renderTable() {
             <span class="link-btn" data-resume="${p.id}">Resume now</span>
           </div>
         ` : ''}
+        ${p.onVacation ? `
+          <div class="days-overdue">${p.vacationStart ? p.vacationStart + ' – ' : ''}${p.returnDate || ''}</div>
+          ${p.vacationNote ? `<div class="days-overdue">${p.vacationNote}</div>` : ''}
+          <div class="row-links">
+            <span class="link-btn" data-edit-vacation-modal="${p.id}">Edit</span>
+            <span class="link-btn" data-end-vacation="${p.id}">End</span>
+          </div>` : ''}
         ${showAttemptsFlag ? `<div class="attempts-flag">⚠ ${previousNotes.length + 1} attempts, no response</div>` : ''}
         ${p.reminderDate ? `<div class="reminder-tag">⏰ Reminder: ${formatDate(p.reminderDate)}</div>` : ''}
       </td>
