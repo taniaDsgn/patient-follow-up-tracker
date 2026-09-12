@@ -546,14 +546,21 @@ function formatDateTime(isoStr) {
 }
 
 function mapApiPatient(p) {
-  const notes = (p.notes || []).map(n => ({
+  const allNotesRaw = (p.notes || []).map(n => ({
     id: n.id, date: n.note_date, text: n.text, createdBy: n.created_by || null,
   })).sort((a, b) => a.date.localeCompare(b.date));
+  const VACATION_MARKER = '[[VACATION]] ';
+  const vacationNotesList = allNotesRaw.filter(n => n.text.startsWith(VACATION_MARKER))
+    .map(n => ({ ...n, text: n.text.slice(VACATION_MARKER.length) }));
+  const notes = allNotesRaw.filter(n => !n.text.startsWith(VACATION_MARKER));
   const currentNoteId = notes.length ? notes[notes.length - 1].id : null;
+  const vacationNote = vacationNotesList.length ? vacationNotesList[vacationNotesList.length - 1].text : null;
   const hasFutureAppointment = p.next_appointment && new Date(p.next_appointment + 'T00:00:00') >= today;
+const vacationStarted = !p.vacation_start || new Date(p.vacation_start + 'T00:00:00') <= today;
+const vacationActive = !!p.on_vacation && vacationStarted;
 let status;
 if (hasFutureAppointment) status = 'ok';
-else if (p.on_vacation) status = currentNoteId ? 'note' : 'none';
+else if (vacationActive) status = currentNoteId ? 'note' : 'none';
 else status = currentNoteId ? 'note' : 'urgent';
 
   return {
@@ -563,6 +570,8 @@ else status = currentNoteId ? 'note' : 'urgent';
     lastDate: p.last_scheduled_date,
     status,
     onVacation: !!p.on_vacation,
+    vacationActive,
+    vacationNote,
     vacationStart: p.vacation_start ? formatDate(p.vacation_start) : null,
     vacationStartRaw: p.vacation_start || null,
     returnDate: p.on_vacation && p.expected_return_date ? formatDate(p.expected_return_date) : null,
@@ -597,7 +606,7 @@ async function loadPatients() {
 function getVisiblePatients() {
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
   let list = patients.filter(p => {
-    if (!activeFilter) return !p.onVacation && !p.isPaused;
+    if (!activeFilter) return !p.vacationActive && !p.isPaused;
     if (activeFilter === 'vacation') return p.onVacation;
     if (activeFilter === 'paused') return p.isPaused;
     if (activeFilter === 'waitlist') return p.waiting;
@@ -643,13 +652,35 @@ function renderTable() {
     const showAttemptsFlag = previousNotes.length >= 2 && days >= 14 && !p.isPaused;
 
     const tr = document.createElement('tr');
+
+    if (activeFilter === 'vacation') {
+      tr.innerHTML = `
+        <td class="patient-name">${p.name}</td>
+        <td>
+          <span class="status-pill vacation">On vacation</span>
+          <div class="days-overdue">${p.vacationStart ? p.vacationStart + ' – ' : ''}${p.returnDate || ''}</div>
+        </td>
+        <td>${p.vacationNote ? `<div class="note-text">${p.vacationNote}</div>` : `<div class="note-text">No current note</div>`}</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td>
+          <div class="row-links">
+            <span class="link-btn" data-edit-vacation-modal="${p.id}">Edit</span>
+            <span class="link-btn" data-end-vacation="${p.id}">End</span>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+      return;
+    }
+
     tr.innerHTML = `
       <td class="patient-name">${p.name}</td>
       <td>
         ${p.isPaused
   ? `<span class="status-pill paused">Paused</span>`
   : (p.status !== 'none' ? `<span class="status-pill ${p.status}">${statusLabel[p.status]}</span>` : '')}
-        ${p.onVacation ? `<span class="status-pill vacation">On vacation</span>` : ''}
         ${p.isPaused ? `
           <div class="days-overdue">${p.pauseReason || 'No reason logged'}</div>
           ${p.resumeDate ? `<div class="days-overdue">Resume: ${formatDate(p.resumeDate)}</div>` : ''}
@@ -658,12 +689,6 @@ function renderTable() {
             <span class="link-btn" data-resume="${p.id}">Resume now</span>
           </div>
         ` : ''}
-        ${p.onVacation ? `
-          <div class="days-overdue">${p.vacationStart ? p.vacationStart + ' – ' : ''}${p.returnDate || ''}</div>
-          <div class="row-links">
-            <span class="link-btn" data-edit-vacation-modal="${p.id}">Edit</span>
-            <span class="link-btn" data-end-vacation="${p.id}">End</span>
-          </div>` : ''}
         ${showAttemptsFlag ? `<div class="attempts-flag">⚠ ${previousNotes.length + 1} attempts, no response</div>` : ''}
         ${p.reminderDate ? `<div class="reminder-tag">⏰ Reminder: ${formatDate(p.reminderDate)}</div>` : ''}
       </td>
@@ -680,7 +705,7 @@ function renderTable() {
       </td>
       <td>
         ${formatDate(p.lastDate)}
-        <div class="days-overdue ${(p.status === 'urgent' || p.status === 'note') && !p.onVacation && !p.isPaused ? overdueClass : ''}">
+        <div class="days-overdue ${(p.status === 'urgent' || p.status === 'note') && !p.vacationActive && !p.isPaused ? overdueClass : ''}">
           ${days === 0 ? 'Today' : days + ' day' + (days === 1 ? '' : 's') + ' ago'}
         </div>
       </td>
@@ -1345,7 +1370,7 @@ document.getElementById('saveVacationBtn').addEventListener('click', async (e) =
     if (noteVal) {
       await fetch(`${API_BASE}/api/notes`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ patient_id: p.id, note_text: noteVal, note_date: new Date().toISOString().slice(0,19), created_by: currentStaff }),
+        body: JSON.stringify({ patient_id: p.id, note_text: '[[VACATION]] ' + noteVal, note_date: new Date().toISOString().slice(0,19), created_by: currentStaff }),
       });
     }
     document.getElementById('vacationModal').classList.add('hidden');
