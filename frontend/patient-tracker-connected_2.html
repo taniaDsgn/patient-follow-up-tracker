@@ -610,7 +610,7 @@ function getVisiblePatients() {
     if (activeFilter === 'vacation') return p.onVacation;
     if (activeFilter === 'paused') return p.isPaused;
     if (activeFilter === 'waitlist') return p.waiting;
-    return p.status === activeFilter && !p.isPaused;
+    return p.status === activeFilter && !p.isPaused && !p.vacationActive;
   });
   if (q) list = list.filter(p => p.name.toLowerCase().includes(q));
   list = [...list].sort((a, b) => {
