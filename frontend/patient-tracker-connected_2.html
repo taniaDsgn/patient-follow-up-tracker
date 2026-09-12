@@ -26,6 +26,7 @@
     --gray-bg: #F4F4F5;
   }
   * { box-sizing: border-box; }
+  html { scrollbar-gutter: stable; overflow-y: scroll; }
   body {
     margin: 0;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -33,7 +34,7 @@
     color: var(--text);
     padding: 32px 40px 80px;
   }
-  .wrap { max-width: 1040px; margin: 0 auto; }
+  .wrap { width: 1040px; margin: 0 auto; flex-shrink: 0; }
 
   h1 { font-size: 26px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.02em; }
 .clinic-dropdown-wrap { position: relative; display: inline-block; }
@@ -244,8 +245,8 @@ td { word-wrap: break-word; }
   .cal-day.empty { cursor: default; }
   .cal-day.empty:hover { border-color: transparent; }
   .cal-day.selected { background: #101828; color: white; font-weight: 600; }
-  .cal-day.today { border: 2px solid #101828; font-weight: 700; }
-.cal-day.today.selected { border-color: white; }
+  @keyframes highlightRow { 0% { background: #FEF3C7; } 100% { background: transparent; } }
+tr.highlighted td { animation: highlightRow 2s ease-out; }
 </style>
 </head>
 <body>
@@ -439,6 +440,16 @@ td { word-wrap: break-word; }
     <button class="btn btn-primary" id="wApplyBtn">Apply</button>
   </div>
 </div>
+<div class="modal-overlay hidden" id="confirmEndVacationModal">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2>End vacation?</h2>
+    <p class="modal-body">This will mark the patient as no longer on vacation.</p>
+    <div class="modal-actions" style="justify-content: flex-end;">
+      <button class="btn" id="cancelEndVacationBtn">Cancel</button>
+      <button class="btn" id="confirmEndVacationBtn" style="background:#B91C1C; color:white; border-color:#B91C1C;">Yes, end vacation</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <div class="wrap">
@@ -478,7 +489,7 @@ td { word-wrap: break-word; }
 
   <table>
     <thead>
-      <tr>
+      <tr id="tableHeaderRow">
         <th data-sort="name">Patient <span class="arrow">↕</span></th>
         <th data-sort="status">Status <span class="arrow">↕</span></th>
         <th>Note</th>
@@ -555,6 +566,7 @@ function mapApiPatient(p) {
   const notes = allNotesRaw.filter(n => !n.text.startsWith(VACATION_MARKER));
   const currentNoteId = notes.length ? notes[notes.length - 1].id : null;
   const vacationNote = vacationNotesList.length ? vacationNotesList[vacationNotesList.length - 1].text : null;
+  const vacationNoteId = vacationNotesList.length ? vacationNotesList[vacationNotesList.length - 1].id : null;
   const hasFutureAppointment = p.next_appointment && new Date(p.next_appointment + 'T00:00:00') >= today;
 const vacationStarted = !p.vacation_start || new Date(p.vacation_start + 'T00:00:00') <= today;
 const vacationActive = !!p.on_vacation && vacationStarted;
@@ -572,6 +584,7 @@ else status = currentNoteId ? 'note' : 'urgent';
     onVacation: !!p.on_vacation,
     vacationActive,
     vacationNote,
+    vacationNoteId,
     vacationStart: p.vacation_start ? formatDate(p.vacation_start) : null,
     vacationStartRaw: p.vacation_start || null,
     returnDate: p.on_vacation && p.expected_return_date ? formatDate(p.expected_return_date) : null,
@@ -625,8 +638,40 @@ function getVisiblePatients() {
   });
   return list;
 }
+function renderTableHeader() {
+  const headerRow = document.getElementById('tableHeaderRow');
+  if (activeFilter === 'vacation') {
+    headerRow.innerHTML = `
+      <th data-sort="name" style="width:15%;">Patient <span class="arrow">↕</span></th>
+      <th data-sort="status" style="width:14%;">Status <span class="arrow">↕</span></th>
+      <th style="width:16%;">Vacation dates</th>
+      <th style="width:41%;">Note</th>
+      <th style="width:0;"></th>
+      <th style="width:0;"></th>
+      <th style="width:14%;">Actions</th>
+    `;
+  } else {
+    headerRow.innerHTML = `
+      <th data-sort="name">Patient <span class="arrow">↕</span></th>
+      <th data-sort="status">Status <span class="arrow">↕</span></th>
+      <th>Note</th>
+      <th data-sort="days">Last Appt <span class="arrow">↕</span></th>
+      <th>Next Appt</th>
+      <th data-sort="treatment">Treatment <span class="arrow">↕</span></th>
+      <th>Actions</th>
+    `;
+  }
+  headerRow.querySelectorAll('th[data-sort]').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.sort;
+      if (sortKey === key) sortDir *= -1; else { sortKey = key; sortDir = 1; }
+      renderTable();
+    });
+  });
+}
 
 function renderTable() {
+  renderTableHeader();
   const tbody = document.getElementById('patientTableBody');
   tbody.innerHTML = '';
   const list = getVisiblePatients();
@@ -652,16 +697,44 @@ function renderTable() {
     const showAttemptsFlag = previousNotes.length >= 2 && days >= 14 && !p.isPaused;
 
     const tr = document.createElement('tr');
+    tr.id = `row-${p.id}`;
+
+    if (activeFilter === 'vacation') {
+      tr.innerHTML = `
+        <td class="patient-name">${p.name}</td>
+        <td>${p.vacationActive
+          ? `<span class="status-pill vacation">On vacation</span>`
+          : `<span class="status-pill" style="background:#F4F4F5;color:#52525B;">Vacation coming</span>`}</td>
+        <td>${p.vacationStart ? p.vacationStart + ' – ' : ''}${p.returnDate || ''}</td>
+        <td style="white-space:normal;">${p.vacationNote ? `<div style="color:#6A7282; font-size:13px; white-space:normal; word-wrap:break-word;">${p.vacationNote}</div>` : `<div class="note-text">No current note</div>`}</td>
+        <td></td>
+        <td></td>
+        <td>
+          <div class="actions">
+            <button class="action-btn" data-edit-vacation-modal="${p.id}">Edit</button>
+            <div class="overflow-wrap">
+              <button class="action-btn overflow-toggle" data-toggle-overflow="${p.id}">⋯</button>
+              <div class="overflow-menu-dropdown" id="overflow-${p.id}">
+                <button data-end-vacation="${p.id}">End</button>
+              </div>
+            </div>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+      return;
+    }
+
     tr.innerHTML = `
       <td class="patient-name">${p.name}</td>
       <td>
         ${p.isPaused
-  ? `<span class="status-pill paused">Paused</span>`
-  : (p.status !== 'none' ? `<span class="status-pill ${p.status}">${statusLabel[p.status]}</span>` : '')}
+          ? `<span class="status-pill paused">Paused</span>`
+          : (p.status !== 'none' ? `<span class="status-pill ${p.status}">${statusLabel[p.status]}</span>` : '')}
         ${p.onVacation
           ? (p.vacationActive
               ? `<span class="status-pill vacation">On vacation</span>`
-              : `<span class="status-pill" style="background:#F4F4F5;color:#52525B;">🗓 Vacation coming</span>`)
+              : `<span class="status-pill" style="background:#F4F4F5;color:#52525B;cursor:pointer;" data-goto-vacation="${p.id}">🗓 Vacation coming</span>`)
           : ''}
         ${p.isPaused ? `
           <div class="days-overdue">${p.pauseReason || 'No reason logged'}</div>
@@ -671,13 +744,6 @@ function renderTable() {
             <span class="link-btn" data-resume="${p.id}">Resume now</span>
           </div>
         ` : ''}
-        ${p.onVacation ? `
-          <div class="days-overdue">${p.vacationStart ? p.vacationStart + ' – ' : ''}${p.returnDate || ''}</div>
-          ${p.vacationNote ? `<div class="days-overdue">${p.vacationNote}</div>` : ''}
-          <div class="row-links">
-            <span class="link-btn" data-edit-vacation-modal="${p.id}">Edit</span>
-            <span class="link-btn" data-end-vacation="${p.id}">End</span>
-          </div>` : ''}
         ${showAttemptsFlag ? `<div class="attempts-flag">⚠ ${previousNotes.length + 1} attempts, no response</div>` : ''}
         ${p.reminderDate ? `<div class="reminder-tag">⏰ Reminder: ${formatDate(p.reminderDate)}</div>` : ''}
       </td>
@@ -858,6 +924,24 @@ function attachRowHandlers() {
       openPauseModal(btn.dataset.id);
     });
   });
+  document.querySelectorAll('[data-goto-vacation]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = el.dataset.gotoVacation;
+      activeFilter = 'vacation';
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+      document.getElementById('chipVacation').classList.add('selected');
+      renderTable();
+      setTimeout(() => {
+        const row = document.getElementById(`row-${id}`);
+        if (row) {
+          row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          row.classList.add('highlighted');
+          setTimeout(() => row.classList.remove('highlighted'), 2000);
+        }
+      }, 50);
+    });
+  });
   document.querySelectorAll('[data-edit-pause]').forEach(el => {
     el.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -954,17 +1038,10 @@ function attachRowHandlers() {
     });
   });
   document.querySelectorAll('[data-end-vacation]').forEach(el => {
-    el.addEventListener('click', async () => {
-      const p = patients.find(x => x.id === el.dataset.endVacation);
-      try {
-        const res = await fetch(`${API_BASE}/api/vacation`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ patient_id: p.id, on_vacation: false }),
-        });
-        if (!res.ok) throw new Error();
-        showToast(`Ended vacation status for ${p.name}`);
-        await loadPatients();
-      } catch (err) { showToast('Could not update vacation — is the server running?'); }
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      endVacationPatientId = el.dataset.endVacation;
+      document.getElementById('confirmEndVacationModal').classList.remove('hidden');
     });
   });
 
@@ -1034,13 +1111,6 @@ document.querySelectorAll('.chip').forEach(chip => {
 
 document.addEventListener('click', () => {
   document.querySelectorAll('.overflow-menu-dropdown').forEach(m => m.classList.remove('open'));
-});
-document.querySelectorAll('th[data-sort]').forEach(th => {
-  th.addEventListener('click', () => {
-    const key = th.dataset.sort;
-    if (sortKey === key) sortDir *= -1; else { sortKey = key; sortDir = 1; }
-    renderTable();
-  });
 });
 
 document.getElementById('searchInput').addEventListener('input', renderTable);
@@ -1332,7 +1402,7 @@ function openVacationModal(patientId, isEdit) {
   document.getElementById('vacationModalName').textContent = `${isEdit ? 'Edit vacation' : 'Log vacation'} — ${p.name}`;
   document.getElementById('vacationStart').value = isEdit ? (p.vacationStartRaw || '') : '';
   document.getElementById('vacationDate').value = isEdit ? (p.returnDateRaw || '') : '';
-  document.getElementById('vacationNote').value = '';
+  document.getElementById('vacationNote').value = isEdit ? (p.vacationNote || '') : '';
   document.getElementById('vacationModal').classList.remove('hidden');
 }
 document.getElementById('cancelVacationBtn').addEventListener('click', () => {
@@ -1356,7 +1426,12 @@ document.getElementById('saveVacationBtn').addEventListener('click', async (e) =
       body: JSON.stringify({ patient_id: p.id, on_vacation: true, vacation_start: startVal || null, expected_return_date: dateVal }),
     });
     if (!res.ok) throw new Error();
-    if (noteVal) {
+    if (noteVal && p.vacationNoteId) {
+      await fetch(`${API_BASE}/api/notes/${p.vacationNoteId}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_text: '[[VACATION]] ' + noteVal }),
+      });
+    } else if (noteVal) {
       await fetch(`${API_BASE}/api/notes`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ patient_id: p.id, note_text: '[[VACATION]] ' + noteVal, note_date: new Date().toISOString().slice(0,19), created_by: currentStaff }),
@@ -1382,6 +1457,30 @@ function openPauseModal(patientId) {
 document.getElementById('cancelPauseBtn').addEventListener('click', () => {
   document.getElementById('pauseModal').classList.add('hidden');
 });
+
+let endVacationPatientId = null;
+document.getElementById('cancelEndVacationBtn').addEventListener('click', () => {
+  document.getElementById('confirmEndVacationModal').classList.add('hidden');
+});
+document.getElementById('confirmEndVacationModal').addEventListener('click', () => {
+  document.getElementById('confirmEndVacationModal').classList.add('hidden');
+});
+document.getElementById('confirmEndVacationBtn').addEventListener('click', async (e) => {
+  e.stopPropagation();
+  if (!endVacationPatientId) return;
+  const p = patients.find(x => x.id === endVacationPatientId);
+  try {
+    const res = await fetch(`${API_BASE}/api/vacation`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ patient_id: p.id, on_vacation: false }),
+    });
+    if (!res.ok) throw new Error();
+    document.getElementById('confirmEndVacationModal').classList.add('hidden');
+    showToast(`Ended vacation status for ${p.name}`);
+    await loadPatients();
+  } catch (err) { showToast('Could not update vacation — is the server running?'); }
+});
+
 let addNoteModalPatientId = null;
 
 function openAddNoteModal(patientId) {
