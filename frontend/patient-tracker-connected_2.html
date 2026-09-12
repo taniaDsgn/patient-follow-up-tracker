@@ -123,7 +123,7 @@ td { word-wrap: break-word; }
   td { padding: 14px 16px; font-size: 14px; border-bottom: 1px solid #F9FAFB; vertical-align: top; }
   tbody tr:last-of-type td { border-bottom: none; }
   tbody tr:hover td { background: #FAFAF9; }
-  .patient-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .patient-name { font-weight: 600; }
   .days-overdue { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
   .days-overdue.high { color: var(--coral); font-weight: 600; }
 
@@ -564,6 +564,7 @@ else status = currentNoteId ? 'note' : 'urgent';
     status,
     onVacation: !!p.on_vacation,
     vacationStart: p.vacation_start ? formatDate(p.vacation_start) : null,
+    vacationStartRaw: p.vacation_start || null,
     returnDate: p.on_vacation && p.expected_return_date ? formatDate(p.expected_return_date) : null,
     returnDateRaw: p.on_vacation ? p.expected_return_date : null,
     isPaused: !!p.is_paused,
@@ -1173,6 +1174,20 @@ document.getElementById('modalDeleteNoteBtn').addEventListener('click', () => {
 });
 document.getElementById('noteDetailWaitlistBadge').addEventListener('click', (e) => {
   e.stopPropagation();
+  if (viewingNote) {
+    const p = patients.find(x => x.id === viewingNote.patientId);
+    if (p && p.preferredTime && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(p.preferredTime)) {
+      const [datePart, timePart] = p.preferredTime.split('T');
+      wSelectedDate = datePart;
+      const [h24, min] = timePart.split(':').map(Number);
+      wSelectedAmPm = h24 >= 12 ? 'PM' : 'AM';
+      wSelectedHour = h24 % 12 === 0 ? 12 : h24 % 12;
+      wSelectedMinute = String(min).padStart(2, '0');
+      const d = new Date(datePart + 'T00:00:00');
+      wCalYear = d.getFullYear();
+      wCalMonth = d.getMonth() + 1;
+    }
+  }
   openWaitlistDateTimeModal(e.currentTarget, 'noteDetail');
 });
 
@@ -1301,8 +1316,8 @@ function openVacationModal(patientId, isEdit) {
   vacationModalPatientId = patientId;
   const p = patients.find(x => x.id === patientId);
   document.getElementById('vacationModalName').textContent = `${isEdit ? 'Edit vacation' : 'Log vacation'} — ${p.name}`;
-  document.getElementById('vacationStart').value = '';
-  document.getElementById('vacationDate').value = '';
+  document.getElementById('vacationStart').value = isEdit ? (p.vacationStartRaw || '') : '';
+  document.getElementById('vacationDate').value = isEdit ? (p.returnDateRaw || '') : '';
   document.getElementById('vacationNote').value = '';
   document.getElementById('vacationModal').classList.remove('hidden');
 }
@@ -1361,8 +1376,11 @@ function openAddNoteModal(patientId) {
   document.getElementById('addNoteModalName').textContent = `Add note — ${p.name}`;
   document.getElementById('addNoteInput').value = '';
   document.getElementById('addNoteWaitlistCheck').checked = false;
-  document.getElementById('addNotePreferredTime').style.display = 'none';
-  document.getElementById('addNotePreferredTime').value = '';
+  const timeBtn = document.getElementById('addNotePreferredTime');
+  timeBtn.style.display = 'none';
+  timeBtn.textContent = 'Select date & time';
+  timeBtn.style.color = 'var(--text-muted)';
+  delete timeBtn.dataset.isoValue;
   document.getElementById('addNoteModal').classList.remove('hidden');
   document.getElementById('addNoteInput').focus();
 }
