@@ -123,7 +123,7 @@ td { word-wrap: break-word; }
   td { padding: 14px 16px; font-size: 14px; border-bottom: 1px solid #F9FAFB; vertical-align: top; }
   tbody tr:last-of-type td { border-bottom: none; }
   tbody tr:hover td { background: #FAFAF9; }
-  .patient-name { font-weight: 600; }
+  .patient-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .days-overdue { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
   .days-overdue.high { color: var(--coral); font-weight: 600; }
 
@@ -133,12 +133,13 @@ td { word-wrap: break-word; }
   .status-pill.vacation { background: var(--blue-bg); color: var(--blue); }
   .status-pill.ok { background: var(--green-bg); color: var(--green); }
   .status-pill.paused { background: var(--gray-bg); color: var(--gray); }
+  .waitlist-tag { font-size: 11px; color: #0F766E; font-weight: 500; }
 
   .attempts-flag { font-size: 11px; color: var(--coral); font-weight: 600; margin-top: 3px; }
   .reminder-tag { font-size: 11px; color: #0F766E; margin-top: 3px; }
-  .waitlist-tag { font-size: 11px; color: #0F766E; font-weight: 500; }
+  .waiting-badge { display:inline-flex; align-items:center; padding:4px 12px; border-radius:999px; font-size:12px; font-weight:600; border:none; cursor:pointer; background:#CCFBF1; color:#0F766E; white-space:nowrap; }
 
-  .note-text { color: #6A7282; font-size: 13px; max-width: 230px; }
+  .note-text { color: #6A7282; font-size: 13px; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
   .note-clickable { cursor: pointer; }
   .note-clickable:hover { color: var(--text); text-decoration: underline; text-decoration-style: dotted; }
   .note-count { display: inline-block; font-size: 11px; color: var(--text-muted); cursor: pointer; margin-top: 4px; text-decoration: underline; text-underline-offset: 2px; }
@@ -243,6 +244,8 @@ td { word-wrap: break-word; }
   .cal-day.empty { cursor: default; }
   .cal-day.empty:hover { border-color: transparent; }
   .cal-day.selected { background: #101828; color: white; font-weight: 600; }
+  .cal-day.today { border: 2px solid #101828; font-weight: 700; }
+.cal-day.today.selected { border-color: white; }
 </style>
 </head>
 <body>
@@ -271,7 +274,10 @@ td { word-wrap: break-word; }
 
 <div class="modal-overlay hidden" id="noteDetailOverlay">
   <div class="modal" onclick="event.stopPropagation()">
-    <h2 id="noteDetailPatientName">Note</h2>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px;" id="noteDetailHeader">
+      <h2 id="noteDetailPatientName" style="margin:0; white-space:nowrap;">Note</h2>
+      <button type="button" id="noteDetailWaitlistBadge" class="waiting-badge" style="display:none; flex-shrink:0;"></button>
+    </div>
 
     <div id="noteViewMode">
       <p class="modal-body" id="noteDetailText" style="color: var(--text); line-height:1.6;"></p>
@@ -401,11 +407,36 @@ td { word-wrap: break-word; }
       <input type="checkbox" id="addNoteWaitlistCheck">
       <label for="addNoteWaitlistCheck">No opening available — add to waitlist</label>
     </div>
-    <input type="text" id="addNotePreferredTime" placeholder="Preferred time, e.g. Tuesday afternoons" class="staff-select" style="display:none; margin-top:8px;">
+    <button type="button" id="addNotePreferredTime" class="staff-select" style="display:none; margin-top:8px; text-align:left; cursor:pointer; color:var(--text-muted);">Select date & time</button>
     <div class="modal-actions" style="margin-top:16px;">
       <button class="btn" id="cancelAddNoteBtn">Cancel</button>
       <button class="btn btn-primary" id="saveAddNoteBtn">Save note</button>
     </div>
+  </div>
+</div>
+<div class="schedule-popover hidden" id="waitlistDateTimeModal">
+  <div class="cal-nav">
+    <button type="button" class="cal-nav-btn" id="wCalPrevBtn">‹</button>
+    <div class="cal-month-label" id="wCalMonthLabel"></div>
+    <button type="button" class="cal-nav-btn" id="wCalNextBtn">›</button>
+  </div>
+  <div id="waitlistCalendarWrap"></div>
+  <div style="display:flex; align-items:center; justify-content:center; gap:6px; margin-top:14px;">
+    <span class="expand-field-label" style="margin:0;">Time</span>
+    <select id="wHourSelect" class="staff-select" style="width:60px; margin-top:0; padding:6px;"></select>
+    <span>:</span>
+    <select id="wMinuteSelect" class="staff-select" style="width:60px; margin-top:0; padding:6px;">
+      <option value="00">00</option>
+      <option value="15">15</option>
+      <option value="30">30</option>
+      <option value="45">45</option>
+    </select>
+    <button type="button" id="wAmBtn" class="btn" style="padding:6px 10px;">AM</button>
+    <button type="button" id="wPmBtn" class="btn" style="padding:6px 10px;">PM</button>
+  </div>
+  <div class="modal-actions" style="margin-top:16px; justify-content: center;">
+    <button class="btn" id="wCancelBtn">Cancel</button>
+    <button class="btn btn-primary" id="wApplyBtn">Apply</button>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -487,6 +518,18 @@ function formatDate(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00');
   return `${monthNames[d.getMonth()]} ${d.getDate()}`;
+}
+function formatPreferredTime(val) {
+  if (!val) return 'any opening';
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(val)) return val;
+  const d = new Date(val + ':00');
+  const dayLabel = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  let h = d.getHours();
+  const min = d.getMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12; if (h === 0) h = 12;
+  const timeLabel = min === 0 ? `${h}${ampm}` : `${h}:${String(min).padStart(2,'0')}${ampm}`;
+  return `${dayLabel}, ${timeLabel}`;
 }
 function formatDateTime(isoStr) {
   // Formats to MM/DD/YYYY at h:mmam/pm
@@ -609,7 +652,10 @@ function renderTable() {
         ${p.isPaused ? `
           <div class="days-overdue">${p.pauseReason || 'No reason logged'}</div>
           ${p.resumeDate ? `<div class="days-overdue">Resume: ${formatDate(p.resumeDate)}</div>` : ''}
-          <div class="row-links"><span class="link-btn" data-resume="${p.id}">Resume now</span></div>
+          <div class="row-links">
+            <span class="link-btn" data-edit-pause="${p.id}">Edit</span>
+            <span class="link-btn" data-resume="${p.id}">Resume now</span>
+          </div>
         ` : ''}
         ${p.onVacation ? `
           <div class="days-overdue">${p.vacationStart ? p.vacationStart + ' – ' : ''}${p.returnDate || ''}</div>
@@ -629,7 +675,7 @@ function renderTable() {
           ${previousNotes.slice().reverse().map(n => `
             <div class="history-item note-clickable" data-view-note="${p.id}:${n.id}">${n.text}</div>`).join('')}
         </div>
-        ${p.waiting ? `<div class="waitlist-tag">🕐 Waiting: ${p.preferredTime || 'any opening'}</div>` : ''}
+        ${p.waiting ? `<div class="waitlist-tag">🕐 Waiting: ${formatPreferredTime(p.preferredTime)}</div>` : ''}
       </td>
       <td>
         ${formatDate(p.lastDate)}
@@ -750,10 +796,12 @@ function renderMonthGrid(year, month) {
   const startWeekday = first.getDay();
   let cells = '';
   for (let i = 0; i < startWeekday; i++) cells += `<div class="cal-day empty"></div>`;
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isSelected = calendarSelected.has(dateStr);
-    cells += `<div class="cal-day${isSelected ? ' selected' : ''}" data-date="${dateStr}">${d}</div>`;
+    const isToday = dateStr === todayStr;
+    cells += `<div class="cal-day${isSelected ? ' selected' : ''}${isToday ? ' today' : ''}" data-date="${dateStr}">${d}</div>`;
   }
   return `<div class="cal-grid"><div class="cal-dow">S</div><div class="cal-dow">M</div><div class="cal-dow">T</div>
     <div class="cal-dow">W</div><div class="cal-dow">T</div><div class="cal-dow">F</div><div class="cal-dow">S</div>${cells}</div>`;
@@ -795,6 +843,12 @@ function attachRowHandlers() {
       openPauseModal(btn.dataset.id);
     });
   });
+  document.querySelectorAll('[data-edit-pause]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openPauseModal(el.dataset.editPause);
+    });
+  });
   document.querySelectorAll('[data-resume]').forEach(el => {
     el.addEventListener('click', async () => {
       const p = patients.find(x => x.id === el.dataset.resume);
@@ -833,6 +887,13 @@ function attachRowHandlers() {
       document.getElementById('noteDetailText').textContent = n.text;
       document.getElementById('noteDetailMeta').textContent =
         `Logged by ${n.createdBy ? n.createdBy : 'unknown staff'} · ${formatDateTime(n.date)}`;
+      const waitBadge = document.getElementById('noteDetailWaitlistBadge');
+      if (p.waiting) {
+        waitBadge.style.display = 'inline-flex';
+        waitBadge.textContent = `🕐 Waiting · ${formatPreferredTime(p.preferredTime)}`;
+      } else {
+        waitBadge.style.display = 'none';
+      }
       showNoteMode('view');
       document.getElementById('noteDetailOverlay').classList.remove('hidden');
     });
@@ -858,6 +919,17 @@ function attachRowHandlers() {
         showToast(`Note deleted for ${p.name}`);
         await loadPatients();
       } catch (err) { showToast('Could not delete note — is the server running?'); }
+    });
+  });
+  document.querySelectorAll('[data-edit-waitlist]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openAddNoteModal(el.dataset.editWaitlist);
+      document.getElementById('addNoteWaitlistCheck').checked = true;
+      document.getElementById('addNotePreferredTime').style.display = 'block';
+      const p = patients.find(x => x.id === el.dataset.editWaitlist);
+      document.getElementById('addNotePreferredTime').value = p.preferredTime || '';
+      document.getElementById('addNoteInput').value = '';
     });
   });
   document.querySelectorAll('[data-edit-vacation-modal]').forEach(el => {
@@ -1062,6 +1134,9 @@ function showNoteMode(mode) {
   document.getElementById('noteViewMode').style.display = mode === 'view' ? 'block' : 'none';
   document.getElementById('noteEditMode').style.display = mode === 'edit' ? 'block' : 'none';
   document.getElementById('noteConfirmDeleteMode').style.display = mode === 'confirm-delete' ? 'block' : 'none';
+  document.getElementById('noteDetailHeader').style.display = mode === 'confirm-delete' ? 'block' : 'flex';
+  const badge = document.getElementById('noteDetailWaitlistBadge');
+  if (mode === 'confirm-delete') badge.style.display = 'none';
 }
 
 document.getElementById('modalEditNoteBtn').addEventListener('click', () => {
@@ -1095,6 +1170,10 @@ document.getElementById('saveEditNoteBtn').addEventListener('click', async () =>
 document.getElementById('modalDeleteNoteBtn').addEventListener('click', () => {
   if (!viewingNote) return;
   showNoteMode('confirm-delete');
+});
+document.getElementById('noteDetailWaitlistBadge').addEventListener('click', (e) => {
+  e.stopPropagation();
+  openWaitlistDateTimeModal(e.currentTarget, 'noteDetail');
 });
 
 document.getElementById('cancelDeleteNoteBtn').addEventListener('click', () => {
@@ -1267,8 +1346,8 @@ function openPauseModal(patientId) {
   pauseModalPatientId = patientId;
   const p = patients.find(x => x.id === patientId);
   document.getElementById('pauseModalName').textContent = `Pause — ${p.name}`;
-  document.getElementById('pauseReasonInput').value = '';
-  document.getElementById('resumeDateInput').value = '';
+  document.getElementById('pauseReasonInput').value = p.isPaused ? (p.pauseReason || '') : '';
+  document.getElementById('resumeDateInput').value = p.isPaused ? (p.resumeDate || '') : '';
   document.getElementById('pauseModal').classList.remove('hidden');
 }
 document.getElementById('cancelPauseBtn').addEventListener('click', () => {
@@ -1296,6 +1375,127 @@ document.getElementById('addNoteModal').addEventListener('click', () => {
 document.getElementById('addNoteWaitlistCheck').addEventListener('change', (e) => {
   document.getElementById('addNotePreferredTime').style.display = e.target.checked ? 'block' : 'none';
 });
+document.getElementById('addNotePreferredTime').addEventListener('click', (e) => {
+  e.stopPropagation();
+  openWaitlistDateTimeModal(e.target);
+});
+
+let wSelectedDate = null;
+let wSelectedHour = 12;
+let wSelectedMinute = '00';
+let wSelectedAmPm = 'PM';
+let wCalYear = today.getFullYear();
+let wCalMonth = today.getMonth() + 1;
+
+let wTargetMode = 'addNote';
+function openWaitlistDateTimeModal(anchorEl, targetMode) {
+  wTargetMode = targetMode || 'addNote';
+  const hourSelect = document.getElementById('wHourSelect');
+  if (!hourSelect.options.length) {
+    for (let h = 1; h <= 12; h++) {
+      const opt = document.createElement('option');
+      opt.value = h; opt.textContent = String(h).padStart(2, '0');
+      hourSelect.appendChild(opt);
+    }
+  }
+  hourSelect.value = wSelectedHour;
+  document.getElementById('wMinuteSelect').value = wSelectedMinute;
+  document.getElementById('wAmBtn').classList.toggle('btn-primary', wSelectedAmPm === 'AM');
+  document.getElementById('wPmBtn').classList.toggle('btn-primary', wSelectedAmPm === 'PM');
+
+  wCalYear = today.getFullYear();
+  wCalMonth = today.getMonth() + 1;
+  renderWaitlistCalendar();
+
+  const popover = document.getElementById('waitlistDateTimeModal');
+  popover.classList.remove('hidden');
+  popover.style.position = 'fixed';
+  const rect = anchorEl.getBoundingClientRect();
+  const popW = 280;
+  let left = rect.right + 10;
+  if (left + popW > window.innerWidth - 16) left = rect.left - popW - 10;
+  popover.style.left = `${left}px`;
+  popover.style.top = `${rect.top}px`;
+}
+
+function renderWaitlistCalendar() {
+  document.getElementById('wCalMonthLabel').textContent = `${monthNames[wCalMonth - 1]} ${wCalYear}`;
+  const wrap = document.getElementById('waitlistCalendarWrap');
+  const first = new Date(wCalYear, wCalMonth - 1, 1);
+  const daysInMonth = new Date(wCalYear, wCalMonth, 0).getDate();
+  const startWeekday = first.getDay();
+  let cells = '';
+  for (let i = 0; i < startWeekday; i++) cells += `<div class="cal-day empty"></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${wCalYear}-${String(wCalMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isSelected = wSelectedDate === dateStr;
+    cells += `<div class="cal-day${isSelected ? ' selected' : ''}" data-date="${dateStr}">${d}</div>`;
+  }
+  wrap.innerHTML = `<div class="cal-grid"><div class="cal-dow">S</div><div class="cal-dow">M</div><div class="cal-dow">T</div>
+    <div class="cal-dow">W</div><div class="cal-dow">T</div><div class="cal-dow">F</div><div class="cal-dow">S</div>${cells}</div>`;
+  wrap.querySelectorAll('.cal-day').forEach(cell => {
+    if (cell.classList.contains('empty')) return;
+    cell.addEventListener('click', () => {
+      wSelectedDate = cell.dataset.date;
+      renderWaitlistCalendar();
+    });
+  });
+}
+
+document.getElementById('wCalPrevBtn').addEventListener('click', () => {
+  wCalMonth--; if (wCalMonth < 1) { wCalMonth = 12; wCalYear--; }
+  renderWaitlistCalendar();
+});
+document.getElementById('wCalNextBtn').addEventListener('click', () => {
+  wCalMonth++; if (wCalMonth > 12) { wCalMonth = 1; wCalYear++; }
+  renderWaitlistCalendar();
+});
+document.getElementById('wAmBtn').addEventListener('click', () => {
+  wSelectedAmPm = 'AM';
+  document.getElementById('wAmBtn').classList.add('btn-primary');
+  document.getElementById('wPmBtn').classList.remove('btn-primary');
+});
+document.getElementById('wPmBtn').addEventListener('click', () => {
+  wSelectedAmPm = 'PM';
+  document.getElementById('wPmBtn').classList.add('btn-primary');
+  document.getElementById('wAmBtn').classList.remove('btn-primary');
+});
+document.getElementById('waitlistDateTimeModal').addEventListener('click', (e) => e.stopPropagation());
+document.addEventListener('click', () => {
+  document.getElementById('waitlistDateTimeModal').classList.add('hidden');
+});
+document.getElementById('wCancelBtn').addEventListener('click', () => {
+  document.getElementById('waitlistDateTimeModal').classList.add('hidden');
+});
+document.getElementById('wApplyBtn').addEventListener('click', async () => {
+  if (!wSelectedDate) return;
+  wSelectedHour = parseInt(document.getElementById('wHourSelect').value, 10);
+  wSelectedMinute = document.getElementById('wMinuteSelect').value;
+  const hour24 = wSelectedAmPm === 'PM' && wSelectedHour !== 12 ? wSelectedHour + 12 : (wSelectedAmPm === 'AM' && wSelectedHour === 12 ? 0 : wSelectedHour);
+  const isoValue = `${wSelectedDate}T${String(hour24).padStart(2,'0')}:${wSelectedMinute}`;
+
+  if (wTargetMode === 'addNote') {
+    const dayLabel = new Date(wSelectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const display = `${dayLabel}, ${String(wSelectedHour).padStart(2,'0')}:${wSelectedMinute} ${wSelectedAmPm}`;
+    const btn = document.getElementById('addNotePreferredTime');
+    btn.textContent = display;
+    btn.style.color = 'var(--text)';
+    btn.dataset.isoValue = isoValue;
+  } else if (wTargetMode === 'noteDetail' && viewingNote) {
+    const p = patients.find(x => x.id === viewingNote.patientId);
+    try {
+      await fetch(`${API_BASE}/api/waitlist`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patient_id: p.id, waiting_for_opening: true, preferred_time: isoValue }),
+      });
+      showToast(`Waiting time updated for ${p.name}`);
+      document.getElementById('noteDetailWaitlistBadge').textContent = `🕐 Waiting · ${formatPreferredTime(isoValue)}`;
+      await loadPatients();
+    } catch (err) { showToast('Could not update waiting time — is the server running?'); }
+  }
+  document.getElementById('waitlistDateTimeModal').classList.add('hidden');
+});
+
 document.getElementById('saveAddNoteBtn').addEventListener('click', async (e) => {
   e.stopPropagation();
   const text = document.getElementById('addNoteInput').value.trim();
@@ -1311,9 +1511,10 @@ document.getElementById('saveAddNoteBtn').addEventListener('click', async (e) =>
     });
     if (!res.ok) throw new Error();
     if (document.getElementById('addNoteWaitlistCheck').checked) {
+      const preferredBtn = document.getElementById('addNotePreferredTime');
       await fetch(`${API_BASE}/api/waitlist`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ patient_id: p.id, waiting_for_opening: true, preferred_time: document.getElementById('addNotePreferredTime').value.trim() }),
+        body: JSON.stringify({ patient_id: p.id, waiting_for_opening: true, preferred_time: preferredBtn.dataset.isoValue || preferredBtn.textContent }),
       });
     }
     document.getElementById('addNoteModal').classList.add('hidden');
