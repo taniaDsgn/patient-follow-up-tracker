@@ -897,13 +897,9 @@ function renderCalendarMonth() {
     if (cell.classList.contains('empty') || cell.classList.contains('past')) return;
     cell.addEventListener('click', () => {
       const dateStr = cell.dataset.date;
-      if (calendarSelected.has(dateStr)) {
-        calendarSelected.delete(dateStr);
-        cell.classList.remove('selected');
-      } else {
-        calendarSelected.add(dateStr);
-        cell.classList.add('selected');
-      }
+      calendarSelected.clear();
+      calendarSelected.add(dateStr);
+      renderCalendarMonth();
     });
   });
 }
