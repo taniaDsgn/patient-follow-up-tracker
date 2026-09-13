@@ -6,10 +6,11 @@ Then the UI can call http://localhost:5000/api/...
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
+import sqlite3
 from tools.patient_tools import (
     get_all_patients, add_note, find_patient_by_name,
     edit_note, delete_note, update_vacation, schedule_appointment,
-    add_patient, set_paused, set_waitlist, set_reminder,
+    add_patient, set_paused, set_waitlist, set_reminder, DB_PATH,
 )
 from agent import agent
 
@@ -139,6 +140,17 @@ def api_schedule_appointment():
         return jsonify({"error": "patient_id and appointment_date are required"}), 400
     result = schedule_appointment(patient_id, appointment_date)
     return jsonify({"message": result})
+
+
+@app.route("/api/patients/<patient_id>", methods=["DELETE"])
+def delete_patient(patient_id):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("DELETE FROM notes WHERE patient_id = ?", (patient_id,))
+    cur.execute("DELETE FROM patients WHERE id = ?", (patient_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"message": f"Patient {patient_id} deleted."})
 
 
 @app.route("/api/patients", methods=["POST"])

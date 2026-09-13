@@ -453,6 +453,16 @@ tr.highlighted td { animation: highlightRow 2s ease-out; }
   </div>
 </div>
 <div id="waitlistReminderPanel" style="display:none; position:fixed; bottom:24px; right:24px; width:320px; max-height:420px; overflow-y:auto; z-index:250; display:flex; flex-direction:column; gap:10px; filter: drop-shadow(0 8px 24px rgba(0,0,0,0.18));"></div>
+<div class="modal-overlay hidden" id="confirmDeletePatientModal">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2>Delete patient?</h2>
+    <p class="modal-body" id="confirmDeletePatientText"></p>
+    <div class="modal-actions" style="justify-content: flex-end;">
+      <button class="btn" id="cancelDeletePatientBtn">Cancel</button>
+      <button class="btn" id="confirmDeletePatientBtn" style="background:#B91C1C; color:white; border-color:#B91C1C;">Yes, delete</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <div class="wrap">
@@ -692,7 +702,7 @@ function renderTable() {
     const apptIsPast = sortedAppts.length && new Date(sortedAppts[0] + 'T00:00:00') < today;
     const nextAppt = sortedAppts.length && !apptIsPast ? formatDate(sortedAppts[0]) : null;
     const effectiveLastDate = apptIsPast ? sortedAppts[0] : p.lastDate;
-    const days = daysAgo(effectiveLastDate);
+    const days = daysAgo(p.lastDate);
     const overdueClass = days >= 7 ? 'high' : '';
     const currentNote = p.notes.find(n => n.id === p.currentNoteId) || null;
     const previousNotes = p.notes.filter(n => n.id !== p.currentNoteId);
@@ -781,6 +791,7 @@ function renderTable() {
             <div class="overflow-menu-dropdown" id="overflow-${p.id}">
               <button class="vacation-btn" data-id="${p.id}">Vacation</button>
               ${!p.isPaused ? `<button class="pause-btn" data-id="${p.id}">Pause</button>` : ''}
+              <button data-delete-patient="${p.id}" style="white-space:nowrap;">Delete patient</button>
             </div>
           </div>
         </div>
@@ -1062,6 +1073,16 @@ function attachRowHandlers() {
     el.addEventListener('click', (e) => {
       e.stopPropagation();
       openVacationModal(el.dataset.editVacationModal, true);
+    });
+  });
+  document.querySelectorAll('[data-delete-patient]').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deletePatientId = el.dataset.deletePatient;
+      const p = patients.find(x => x.id === deletePatientId);
+      document.getElementById('confirmDeletePatientText').textContent =
+        `Delete ${p.name}? This removes them and all their notes. This can't be undone.`;
+      document.getElementById('confirmDeletePatientModal').classList.remove('hidden');
     });
   });
   document.querySelectorAll('[data-end-vacation]').forEach(el => {
@@ -1422,6 +1443,7 @@ document.getElementById('cancelScheduleBtn').addEventListener('click', () => {
   document.getElementById('scheduleModal').classList.add('hidden');
 });
 let vacationModalPatientId = null;
+let deletePatientId = null;
 
 function openVacationModal(patientId, isEdit) {
   vacationModalPatientId = patientId;
@@ -1507,7 +1529,24 @@ document.getElementById('confirmEndVacationBtn').addEventListener('click', async
     await loadPatients();
   } catch (err) { showToast('Could not update vacation — is the server running?'); }
 });
-
+document.getElementById('cancelDeletePatientBtn').addEventListener('click', () => {
+  document.getElementById('confirmDeletePatientModal').classList.add('hidden');
+});
+document.getElementById('confirmDeletePatientModal').addEventListener('click', () => {
+  document.getElementById('confirmDeletePatientModal').classList.add('hidden');
+});
+document.getElementById('confirmDeletePatientBtn').addEventListener('click', async (e) => {
+  e.stopPropagation();
+  if (!deletePatientId) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/patients/${deletePatientId}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error();
+    document.getElementById('confirmDeletePatientModal').classList.add('hidden');
+    showToast('Patient deleted');
+    deletePatientId = null;
+    await loadPatients();
+  } catch (err) { showToast('Could not delete patient — is the server running?'); }
+});
 let addNoteModalPatientId = null;
 
 function openAddNoteModal(patientId) {
