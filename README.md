@@ -28,6 +28,19 @@ Front-desk and clinical staff at any recurring-visit practice — physical thera
 
 ---
 
+## Built for how clinics actually run
+
+A few features exist specifically because of how clinics actually operate day to day, not just as generic app polish:
+
+- **Staff accountability, without a heavyweight login system.** Each staff member has their own PIN, and every note is stamped with who left it. This matters in practices where a manager or owner still keeps a hand on the patient schedule — the question *"why hasn't this patient been rebooked, who spoke to them last, when are they back?"* is a constant one, especially in shift-based scheduling where the person who took the call and the person following up may not be the same. Attribution turns that from a guessing game into a two-second lookup.
+- **Multi-location support.** Practices with more than one office can switch between locations from a dropdown in the header. This reflects a real pattern — patients often split their visits between two locations depending on which is closer to work or home on a given day — so staff need to see the right patient list for the office they're actually sitting in.
+- **A note history, not just the latest note.** Each patient shows their last few notes, not just the most recent one. Staff can quickly see whether a cancellation is a one-off or part of a pattern — the difference between *"life happened this one time"* and *"this patient reschedules every single visit,"* which changes how a follow-up call should go.
+- **Waitlist reminders that don't let a cancellation slip through.** If a patient wanted an opening that wasn't available, staff can put them on the waitlist. The system reminds staff shortly before that patient's originally preferred time, so a same-day cancellation doesn't go unnoticed. Staff can either book the now-open slot right there or mark "no opening yet" — which re-reminds an hour later, and keeps doing so until the patient's preferred time passes, instead of firing once and being forgotten.
+
+At its heart, it's meant to work like a shared notebook for the whole team — a single place anyone on staff can open to check what's going on with a patient, without having to ask around or dig through memory.
+
+---
+
 ## What the agent actually does
 
 The core of the project is a **Strands Agents SDK** agent (running Claude via Amazon Bedrock) that reads the clinic's patient data and reasons about priority — not through hardcoded if/else rules, but through a system prompt that defines *how to think about* the data. Concretely, it:
@@ -93,7 +106,7 @@ The fix was architectural: status is now **always derived** from underlying fact
 
 ## Scope decisions (and why)
 
-Given a 2-week build window, a few things were deliberately kept simple so effort could go toward the agent itself:
+Given the build timeline, a few things were deliberately kept simple so effort could go toward the agent itself:
 
 - **Staff login is PIN-based and in-memory**, not a real authentication system — appropriate for a demo, not production. In a real deployment this would connect to the clinic's actual staff management system.
 - **No live EHR/scheduling integration** (e.g. DrChrono). All appointment data is entered manually by staff. This was a deliberate choice, partly for scope and partly because real patient scheduling data is PHI — the project uses entirely synthetic patient data throughout.
@@ -113,7 +126,9 @@ There's a real, established category of AI tools in this space — no-show predi
 
 ## What's next
 
-- Real EHR integration (DrChrono or similar), scoped down to read-only name + appointment date, under a proper BAA
+- **Two-way EHR sync (DrChrono or similar), under a proper BAA.** When a visit is booked or cancelled directly in DrChrono, a webhook would update the patient's status here automatically — "Scheduled" with the real date and time on booking, "Needs follow-up" on cancellation — no manual entry required. Editing the appointment time here would push the same change back to DrChrono through its API, so staff only ever have to update one place and both systems stay in sync. Manual entry would remain for the one thing DrChrono can't tell you: *why* a patient hasn't rebooked.
+- **A manager view summarizing staff activity.** The PIN attribution already answers "who spoke to this patient last" for one person; the natural next step is a rolled-up view for owners and managers — notes logged and follow-ups closed per staff member — so the same question can be answered at the team level, not just patient by patient.
+- **Autonomous, scheduled agent runs via Amazon Bedrock AgentCore**, instead of a manual CLI trigger — so the daily follow-up analysis happens on its own each morning rather than requiring someone to run it.
 - Multi-appointment scheduling per patient
 - Real staff account management
 - Agent-driven desktop notifications reflecting live follow-up data, not just a manual demo trigger
