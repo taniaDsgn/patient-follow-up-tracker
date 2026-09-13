@@ -245,6 +245,8 @@ td { word-wrap: break-word; }
   .cal-day.empty { cursor: default; }
   .cal-day.empty:hover { border-color: transparent; }
   .cal-day.selected { background: #101828; color: white; font-weight: 600; }
+  .cal-day.past { color: var(--text-muted); cursor: default; opacity: 0.35; }
+.cal-day.past:hover { border-color: transparent; }
   @keyframes highlightRow { 0% { background: #FEF3C7; } 100% { background: transparent; } }
 tr.highlighted td { animation: highlightRow 2s ease-out; }
 </style>
@@ -450,6 +452,7 @@ tr.highlighted td { animation: highlightRow 2s ease-out; }
     </div>
   </div>
 </div>
+<div id="waitlistReminderPanel" style="display:none; position:fixed; bottom:24px; right:24px; width:320px; max-height:420px; overflow-y:auto; z-index:250; display:flex; flex-direction:column; gap:10px; filter: drop-shadow(0 8px 24px rgba(0,0,0,0.18));"></div>
 <div class="toast" id="toast"></div>
 
 <div class="wrap">
@@ -607,6 +610,7 @@ async function loadPatients() {
   const data = await res.json();
   patients = data.map(mapApiPatient);
   renderTable();
+  checkWaitlistReminders();
   const urgent = patients.filter(p => p.status === 'urgent' && !p.isPaused).length;
   const note = patients.filter(p => p.status === 'note' && !p.isPaused).length;
   const vac = patients.filter(p => p.onVacation).length;
@@ -623,7 +627,7 @@ function getVisiblePatients() {
     if (activeFilter === 'vacation') return p.onVacation;
     if (activeFilter === 'paused') return p.isPaused;
     if (activeFilter === 'waitlist') return p.waiting;
-    return p.status === activeFilter;
+    return p.status === activeFilter && !p.isPaused;
   });
   if (q) list = list.filter(p => p.name.toLowerCase().includes(q));
   list = [...list].sort((a, b) => {
@@ -745,7 +749,7 @@ function renderTable() {
           </div>
         ` : ''}
         ${showAttemptsFlag ? `<div class="attempts-flag">⚠ ${previousNotes.length + 1} attempts, no response</div>` : ''}
-        ${p.reminderDate ? `<div class="reminder-tag">⏰ Reminder: ${formatDate(p.reminderDate)}</div>` : ''}
+        
       </td>
       <td>
         ${currentNote
@@ -826,6 +830,28 @@ let calendarViewYear = today.getFullYear();
 let calendarViewMonth = today.getMonth() + 1;
 let scheduleModalPatientId = null;
 
+function openScheduleModalCentered(patientId) {
+  scheduleModalPatientId = patientId;
+  const p = patients.find(x => x.id === patientId);
+  document.getElementById('scheduleModalName').textContent = `Schedule — ${p.name}`;
+  calendarSelected = new Set(p.appointments);
+  if (calendarSelected.size > 0) {
+    const firstDate = new Date(Array.from(calendarSelected)[0] + 'T00:00:00');
+    calendarViewYear = firstDate.getFullYear();
+    calendarViewMonth = firstDate.getMonth() + 1;
+  } else {
+    calendarViewYear = today.getFullYear();
+    calendarViewMonth = today.getMonth() + 1;
+  }
+  renderCalendarMonth();
+
+  const popover = document.getElementById('scheduleModal');
+  popover.classList.remove('hidden');
+  popover.style.position = 'fixed';
+  popover.style.left = '50%';
+  popover.style.top = '50%';
+  popover.style.transform = 'translate(-50%, -50%)';
+}
 function openScheduleModal(patientId, anchorEl) {
   scheduleModalPatientId = patientId;
   const p = patients.find(x => x.id === patientId);
@@ -857,7 +883,7 @@ function renderCalendarMonth() {
   const wrap = document.getElementById('calendarWrap');
   wrap.innerHTML = renderMonthGrid(calendarViewYear, calendarViewMonth);
   wrap.querySelectorAll('.cal-day').forEach(cell => {
-    if (cell.classList.contains('empty')) return;
+    if (cell.classList.contains('empty') || cell.classList.contains('past')) return;
     cell.addEventListener('click', () => {
       const dateStr = cell.dataset.date;
       if (calendarSelected.has(dateStr)) {
@@ -882,7 +908,8 @@ function renderMonthGrid(year, month) {
     const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isSelected = calendarSelected.has(dateStr);
     const isToday = dateStr === todayStr;
-    cells += `<div class="cal-day${isSelected ? ' selected' : ''}${isToday ? ' today' : ''}" data-date="${dateStr}">${d}</div>`;
+    const isPast = dateStr < todayStr;
+    cells += `<div class="cal-day${isSelected ? ' selected' : ''}${isToday ? ' today' : ''}${isPast ? ' past' : ''}" data-date="${dateStr}">${d}</div>`;
   }
   return `<div class="cal-grid"><div class="cal-dow">S</div><div class="cal-dow">M</div><div class="cal-dow">T</div>
     <div class="cal-dow">W</div><div class="cal-dow">T</div><div class="cal-dow">F</div><div class="cal-dow">S</div>${cells}</div>`;
@@ -1688,15 +1715,27 @@ document.getElementById('saveScheduleBtn').addEventListener('click', async () =>
   btn.disabled = true;
   try {
     const res = await fetch(`${API_BASE}/api/appointments`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ patient_id: p.id, appointment_date: dates[0] }),
     });
     if (!res.ok) throw new Error();
+    // If the patient is on the waitlist, remove them
+    if (p.waiting) {
+      await fetch(`${API_BASE}/api/waitlist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patient_id: p.id, waiting_for_opening: false }),
+      });
+    }
     showToast(`Appointment set for ${p.name}`);
     document.getElementById('scheduleModal').classList.add('hidden');
     await loadPatients();
-  } catch (err) { showToast('Could not schedule appointment — is the server running?'); }
-  finally { btn.disabled = false; }
+  } catch (err) {
+    showToast('Could not schedule appointment — is the server running?');
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 // --- Add new patient ---
@@ -1745,6 +1784,66 @@ document.querySelectorAll('.clinic-dropdown-menu button').forEach(btn => {
 document.addEventListener('click', () => {
   document.getElementById('clinicDropdownMenu').classList.remove('open');
 });
+
+const shownWaitlistReminders = new Set();
+let waitlistReminderItems = [];
+
+function checkWaitlistReminders() {
+  const now = new Date();
+  patients.forEach(p => {
+    if (!p.waiting || !p.preferredTime) return;
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(p.preferredTime)) return;
+    const target = new Date(p.preferredTime + ':00');
+    const fiveHoursBefore = new Date(target.getTime() - 5 * 60 * 60 * 1000);
+    const key = `${p.id}:${p.preferredTime}`;
+    if (now >= fiveHoursBefore && now <= target && !shownWaitlistReminders.has(key)) {
+      shownWaitlistReminders.add(key);
+      waitlistReminderItems.push({ id: p.id, name: p.name, time: formatPreferredTime(p.preferredTime) });
+    }
+  });
+  renderWaitlistReminderPanel();
+}
+
+function renderWaitlistReminderPanel() {
+  const panel = document.getElementById('waitlistReminderPanel');
+  if (waitlistReminderItems.length === 0) {
+    panel.style.display = 'none';
+    panel.innerHTML = '';
+    return;
+  }
+  panel.style.display = 'flex';
+  panel.innerHTML = waitlistReminderItems.map(item => `
+    <div class="modal" style="width:100%; padding:16px; margin:0;">
+      <div style="font-weight:600; font-size:14px; margin-bottom:4px;">🕐 ${item.name}</div>
+      <div style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">Wanted an opening around ${item.time}. Is there one now?</div>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button class="btn" data-reminder-no="${item.id}" style="font-size:13px; padding:6px 12px;">No opening</button>
+        <button class="btn btn-primary" data-reminder-yes="${item.id}" style="font-size:13px; padding:6px 12px;">Schedule</button>
+      </div>
+    </div>
+  `).join('');
+
+  panel.querySelectorAll('[data-reminder-no]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.reminderNo;
+      waitlistReminderItems = waitlistReminderItems.filter(i => i.id !== id);
+      showToast('Still on waitlist — no opening yet');
+      renderWaitlistReminderPanel();
+    });
+  });
+
+  panel.querySelectorAll('[data-reminder-yes]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.reminderYes;
+      openScheduleModalCentered(id);
+      waitlistReminderItems = waitlistReminderItems.filter(i => i.id !== id);
+      renderWaitlistReminderPanel();
+    });
+  });
+}
+
+setInterval(checkWaitlistReminders, 60000);
 
 loadPatients();
 </script>
