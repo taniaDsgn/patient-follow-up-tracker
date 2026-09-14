@@ -96,6 +96,48 @@ graph TB
 
 ---
 
+## Setup — how to run this project
+
+**Requirements:** Python 3.12+, an AWS account with Bedrock access (for the AI agent), and the AWS CLI configured for SSO login.
+
+1. **Clone the repository**
+   ```
+   git clone https://github.com/taniaDsgn/patient-follow-up-tracker.git
+   cd patient-follow-up-tracker
+   ```
+
+2. **Set up a virtual environment and install dependencies**
+   ```
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   ```
+
+3. **Authenticate with AWS** (needed for the agent to call Amazon Bedrock)
+   ```
+   aws login
+   ```
+
+4. **Start the Flask API server**
+   ```
+   python server.py
+   ```
+   This runs on `http://127.0.0.1:5000` and serves the patient data to the frontend.
+
+5. **Open the frontend**
+   Open `frontend/patient-tracker-connected_2.html` directly in a browser (double-click it, or drag it into a Chrome window). No build step required — it's a single static HTML file that talks to the Flask server above.
+
+6. **Run the AI agent directly (optional)**
+   To see the agent's reasoning on its own, without the UI:
+   ```
+   python agent.py
+   ```
+   This prints the agent's full follow-up analysis for the day, reasoning through the patient database using its tools.
+
+**Note:** the app ships with `patients.db`, pre-populated with synthetic demo patients — no setup needed to see it working end to end.
+
+---
+
 ## A key design decision: computed, not stored, status
 
 Early versions stored each patient's status (`needs follow-up`, `scheduled`, etc.) as a field that got set directly — which meant it was possible for the data to end up in a contradictory state, like a patient being both "needs follow-up" *and* "scheduled" at once. That's a real bug class, not just a cosmetic issue.
