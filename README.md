@@ -127,6 +127,8 @@ graph TB
 5. **Open the frontend**
    Open `frontend/patient-tracker-connected_2.html` directly in a browser (double-click it, or drag it into a Chrome window). No build step required — it's a single static HTML file that talks to the Flask server above.
 
+   You'll land on a PIN login screen. Use any of these demo staff PINs to sign in: `1111`, `2222`, `3333`, or `4444`.
+
 6. **Run the AI agent directly (optional)**
    To see the agent's reasoning on its own, without the UI:
    ```
